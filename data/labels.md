@@ -10,12 +10,12 @@ Typical signals: jobs, careers, login, customer service number, CBD or vape, "fr
 
 ## ignore
 Relevant enough to keep matching, but not worth a dedicated keyword: research, comparison or definition searches, or intent too unclear to act on.
-Typical signals: "what is a merchant account", "square fees", "how does card processing work".
+Typical signals: "what is a payment gateway", "square fees", "how does card processing work".
 
 ## Boundary rules
 1. Competitor terms: switching or comparing ("square alternative", "cheaper than stripe") is add_keyword. Navigating to the competitor ("square login", "clover customer service") is add_negative. Researching it ("stripe fees") is ignore.
 2. Question terms: questions about the concept ("what is interchange") are ignore. Questions about getting set up ("how to accept credit cards at my salon") are add_keyword.
-3. "Free": "free credit card processing" is add_negative, because Plover never offers it. "Free card reader" is ignore, because a terminal deal can still convert.
+3. "Free": "free card processing" is add_negative, because Plover never offers it. "Free card reader" is ignore, because a terminal deal can still convert.
 4. Unserved segment wins: any high-risk, non-US or consumer signal makes the term add_negative, however strong the buying intent ("cbd merchant account").
 
 ## Tie-breakers
