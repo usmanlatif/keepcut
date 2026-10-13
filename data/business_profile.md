@@ -7,3 +7,4 @@
 - Pricing: interchange-plus with a monthly fee; terminals bought or leased; next-day funding.
 - Competitors: Square, Stripe, Clover, Toast, PayPal.
 - Campaign goal: leads (application form or sales call) from small businesses ready to switch or set up card processing.
+- Campaign judged: Plover Generic Search, the account's non-brand search campaign. The account has no competitor campaign. Every decision is for this campaign only.
