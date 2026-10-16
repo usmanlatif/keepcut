@@ -1,41 +1,41 @@
-id,search_term,label,trigger,labeled_by,date,note
-GS-001,credit card processing for small business,,,,,
-GS-002,toast pos login,,,,,
-GS-003,what is a merchant account,,,,,
-GS-004,high risk merchant account,,,,,
-GS-005,retail merchant account,,,,,
-GS-006,square credit card processing fees,,,,,
-GS-007,free credit card processing,,,,,
-GS-008,how to get a merchant account,,,,,
-GS-009,sd card reader for iphone,,,,,
-GS-010,best card reader for small business,,,,,
-GS-011,merchant account loan,,,,,
-GS-012,clover pos pricing,,,,,
-GS-013,accept credit card payments online without merchant account,,,,,
-GS-014,square restaurant pos,,,,,
-GS-015,bitcoin merchant account,,,,,
-GS-016,cheap credit card processing,,,,,
-GS-017,credit card processing fee calculator,,,,,
-GS-018,international merchant account,,,,,
-GS-019,mobile credit card processing,,,,,
-GS-020,square pos customer service,,,,,
-GS-021,ach merchant account,,,,,
-GS-022,credit card processing springfield,,,,,
-GS-023,casino merchant account,,,,,
-GS-024,online payment processing for small business,,,,,
-GS-025,toast pos news today,,,,,
-GS-026,free mobile credit card processing,,,,,
-GS-027,merchant account setup,,,,,
-GS-028,clover pos reviews,,,,,
-GS-029,tarot card reader,,,,,
-GS-030,credit card processing machines for small business,,,,,
-GS-031,paypal merchant account,,,,,
-GS-032,cost of credit card processing,,,,,
-GS-033,offshore merchant account,,,,,
-GS-034,small business merchant account,,,,,
-GS-035,google merchant account,,,,,
-GS-036,square pos system cost,,,,,
-GS-037,credit card processing hardware for sale,,,,,
-GS-038,merchant account activate phonepe number,,,,,
-GS-039,low cost credit card processing,,,,,
-GS-040,stripe merchant account,,,,,
+﻿id,search_term,label,trigger,labeled_by,date,note
+GS-002,toast pos login,block,login,Usman Latif,2026-10-13,
+GS-004,high risk merchant account,block,high risk,Usman Latif,2026-10-13,
+GS-007,free credit card processing,block,free,Usman Latif,2026-10-13,"We never offer free processing, so these clicks can't convert. Moved from monitor to block after the second review on Oct 13."
+GS-009,sd card reader for iphone,block,sd card reader,Usman Latif,2026-10-13,"Wrong product: a memory card reader, not a payment terminal. Moved from monitor to block after the second review on Oct 13."
+GS-011,merchant account loan,block,loan,Usman Latif,2026-10-13,
+GS-012,clover pos pricing,block,clover,Usman Latif,2026-10-13,
+GS-013,accept credit card payments online without merchant account,block,without merchant,Usman Latif,2026-10-13,"They want to take payments without a merchant account, which is exactly what we sell. Not our buyer."
+GS-014,square restaurant pos,block,square,Usman Latif,2026-10-13,
+GS-015,bitcoin merchant account,block,bitcoin,Usman Latif,2026-10-13,
+GS-018,international merchant account,block,international,Usman Latif,2026-10-13,
+GS-020,square pos customer service,block,customer service,Usman Latif,2026-10-13,
+GS-023,casino merchant account,block,casino,Usman Latif,2026-10-13,
+GS-025,toast pos news today,block,news,Usman Latif,2026-10-13,
+GS-026,free mobile credit card processing,block,free,Usman Latif,2026-10-13,
+GS-029,tarot card reader,block,tarot,Usman Latif,2026-10-13,Nothing to do with payments. Moved from monitor to block after the second review on Oct 13.
+GS-031,paypal merchant account,block,paypal,Usman Latif,2026-10-13,
+GS-033,offshore merchant account,block,offshore,Usman Latif,2026-10-13,
+GS-035,google merchant account,block,google,Usman Latif,2026-10-13,"This is Google Merchant Center for shopping ads, not card processing. Moved from monitor to block after the second review on Oct 13."
+GS-036,square pos system cost,block,square,Usman Latif,2026-10-13,"Asking what Square costs. That's competitor research, and this campaign doesn't bid on competitors."
+GS-038,merchant account activate phonepe number,block,phonepe,Usman Latif,2026-10-13,
+GS-040,stripe merchant account,block,stripe,Usman Latif,2026-10-13,
+GS-003,what is a merchant account,monitor,what is,Usman Latif,2026-10-13,
+GS-006,square credit card processing fees,block,square,Usman Latif,2026-10-13,"Researching Square's fees with no sign of switching, and we have no competitor campaign. Changed from monitor on Oct 16 when I applied the competitor rule to every row."
+GS-017,credit card processing fee calculator,monitor,calculator,Usman Latif,2026-10-13,
+GS-021,ach merchant account,monitor,ach,Usman Latif,2026-10-13,"We don't list ACH as something we sell or exclude, so I can't tell if this fits. Watching it for now."
+GS-028,clover pos reviews,block,clover,Usman Latif,2026-10-13,"Reading Clover reviews, not looking to switch. Same competitor rule as the other brand terms. Changed from monitor on Oct 16."
+GS-032,cost of credit card processing,monitor,cost,Usman Latif,2026-10-13,
+GS-001,credit card processing for small business,target,small business,Usman Latif,2026-10-13,
+GS-005,retail merchant account,target,retail,Usman Latif,2026-10-13,"Retail shops are a core segment, and this is someone shopping for the product. Started as monitor; moved to target after the second review on Oct 13."
+GS-008,how to get a merchant account,target,get a merchant account,Usman Latif,2026-10-13,"This is someone getting set up, not just reading about it. Moved from monitor to target after the second review on Oct 13."
+GS-010,best card reader for small business,target,card reader for small business,Usman Latif,2026-10-13,"""Best"" made me think comparison, but it's a product we sell for the segment we serve, so it's a buyer."
+GS-016,cheap credit card processing,target,cheap,Usman Latif,2026-10-13,
+GS-019,mobile credit card processing,target,mobile,Usman Latif,2026-10-13,
+GS-022,credit card processing springfield,target,springfield,Usman Latif,2026-10-13,"A local search for the product in a US city, which reads as a buyer. Moved from monitor to target after the second review on Oct 13."
+GS-024,online payment processing for small business,target,online,Usman Latif,2026-10-13,
+GS-027,merchant account setup,target,setup,Usman Latif,2026-10-13,
+GS-030,credit card processing machines for small business,target,processing machines,Usman Latif,2026-10-13,
+GS-034,small business merchant account,target,small business,Usman Latif,2026-10-13,
+GS-037,credit card processing hardware for sale,target,hardware,Usman Latif,2026-10-13,
+GS-039,low cost credit card processing,target,low cost,Usman Latif,2026-10-13,
