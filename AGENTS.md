@@ -46,6 +46,7 @@ streamlit run app/main.py       # once the screen exists
 - Never open it, quote it, or use its terms as examples, in a prompt or anywhere in `app/`.
 - The rest of `evaluation/` (scorer, checks, results) may be read and reviewed.
 - `leak-check` enforces this on every commit.
+- Shared skill: `.agents/skills/leak-check/SKILL.md`; run `python3 .agents/skills/leak-check/scripts/leak_check.py`.
 
 ## Working rule
 
