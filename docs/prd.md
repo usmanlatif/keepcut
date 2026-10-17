@@ -1,6 +1,6 @@
 # Search Terms Review App PRD
 
-The plan for this app, approved section by section. Course references (PB, S1 to S6, Policy) point to the course materials. This file is the builders' source for what to build; when it and `AGENTS.md` disagree, ask Usman.
+The plan for this app, approved section by section. Course references (PB, S1 to S6, Policy) point to the course materials. This file is the agents' source for what to build; when it and `AGENTS.md` disagree, ask Usman.
 
 **Sections:** 1 Overview (approved 2026-10-14) · 2 User flow (approved 2026-10-14) · 3 Modules (approved 2026-10-14) · 4 Data (approved 2026-10-14) · 5 Evaluation (approved 2026-10-14) · 6 Build and steering (approved 2026-10-14) · 7 Course map (approved 2026-10-14) · 8 Constraints (approved 2026-10-14) · 9 Milestones (approved 2026-10-15) · 10 Next steps (approved 2026-10-15)
 
@@ -216,12 +216,12 @@ One change at a time, same 40 terms, compare (S2 s33). Each run is saved as a da
 
 ### Tooling
 
-- The scorer, the summary check and the summary judge are written by Codex, not by the tool that built the app
+- The scorer, the summary check and the summary judge are written in a separate agent session from the app, so no session grades its own work
 - The `run-eval` skill runs a prompt version on the golden set and writes `evaluation/results/<date>-<version>.csv` plus a one-line score summary
 
 ## 6. Build and steering
 
-How the app gets built: two coding agents steered by the same files (S4 s10 to 22, "four files, four different jobs"). The context reaches the builders only through the repo; they never read the vault.
+How the app gets built: coding agents steered by one set of agent-neutral files (S4 s10 to 22, "four files, four different jobs"). The context reaches the builders only through the repo; they never read the vault.
 
 ### Stack
 
@@ -240,9 +240,9 @@ Two zones. `app/` is the product: everything the running app needs and nothing e
 | `app/prompts/` | App | `triage_v0.md` to `triage_v5.md`, `reviewer.md`, `summary.md` |
 | `app/data/` | App | Business profile, label rules and intent stages, demo report |
 | `app/requirements.txt` | App | What the app needs to run |
-| `AGENTS.md` | Build | Conventions every builder reads first (both tools read it natively; no `CLAUDE.md`) |
-| `.agents/skills/<name>/SKILL.md` | Build | Skills, one copy; `.claude/skills` is a symlink to it so both tools load the same files |
-| `.agents/agents/reviewer.md` | Build | The reviewer sub-agent's brief, one copy; `.claude/agents/reviewer.md` and `.codex/agents/reviewer.toml` are short wrappers pointing to it |
+| `AGENTS.md` | Build | Conventions every agent reads first; the only instruction file, with no tool-specific copy |
+| `.agents/skills/<name>/SKILL.md` | Build | Skills, one copy. `.claude/skills` is a symlink to it (a pointer, no content) for agents that only discover skills there |
+| `.agents/agents/reviewer.md` | Build | The reviewer agent, one copy. `.claude/agents` is a symlink to `.agents/agents` for agents that only discover agents there; any other agent follows it because `AGENTS.md` says to |
 | `.githooks/pre-commit` | Build | Runs `leak-check` before every commit, whichever tool or person commits |
 | `evaluation/` | Proof | Golden set, scorer, summary check, dated results; calls the app's functions, the app never reads it |
 | `tests/` | Proof | Code checks that run without the model |
@@ -273,18 +273,20 @@ Two zones. `app/` is the product: everything the running app needs and nothing e
 | `reviewer` | Sub-agent, read-only | Reviews a diff against `AGENTS.md` and this PRD, reports findings, cannot edit ("an agent that cannot write cannot break anything") | S4 s17 to 18 |
 | `pre-commit` | Hook | Enforces `leak-check` ("an instruction is a request; a hook is enforcement") | S4 s19 to 20 |
 
-- **Why a git hook, not a tool hook:** it fires the same for Claude Code, Codex and a manual commit. Git does not version `.git/hooks`, so the hook lives in `.githooks/` and each clone runs `git config core.hooksPath .githooks` once (one line in `AGENTS.md`)
+- **Why a git hook, not a tool hook:** it fires the same for any agent and for a manual commit. Git does not version `.git/hooks`, so the hook lives in `.githooks/` and each clone runs `git config core.hooksPath .githooks` once (one line in `AGENTS.md`)
 - **No MCP server:** the app needs no external system, and S4 s31 calls MCP "a standard plug, not a capability". Not using it is a stated choice, not a gap
 - **Evidence for the report (PB 8):** each steering file is committed on its own, and the report shows the file plus what changed because of it (a builder output before and after)
 
-### Builders
+### Roles
 
-| Tool | Builds | Reviews |
-| --- | --- | --- |
-| Claude Code | The app: parsing, triage, reviewer agent, table, dashboard, exports, summary | Codex's evaluation code |
-| Codex | Scorer, summary check, `leak-check`, `run-eval` | Claude Code's app code |
+| Role | Does |
+| --- | --- |
+| Builder agent | Writes a change from a short prompt and runs the checks; never commits |
+| Reviewer agent | A separate agent session following `.agents/agents/reviewer.md`; reviews the uncommitted diff read-only |
+| Usman | Writes the prompts, rules on disagreements, commits and pushes |
 
-**Each step:** Usman gives the builder a short prompt; the builder runs the tests; Usman runs the other tool's `reviewer` on `git diff`; fixes, or Usman rules on a disagreement; the hook runs on commit; Usman commits and pushes. Both tools run from terminals in the repo folder in VS Code.
+- **Independence:** the agent session that writes a change never reviews it, and the evaluation (scorer, checks, judge) is written in a different session from the app it scores
+- **Each step:** prompt the builder; the builder runs the checks; a separate session runs the reviewer on the diff; fix, or Usman rules; the hook runs on commit; Usman commits and pushes
 
 ## 7. Course map
 
@@ -329,7 +331,7 @@ What each session taught, where the project applies it, and the evidence that sh
 | Workflow or agent; start with simple prompts (s4 to 5, s8) | The app is a workflow; the reviewer is its one agentic step; dashboard and lists are plain code | The module table (section 3) |
 | The evaluator-optimizer pattern, and when the critique is worthless (s38) | The reviewer agent, kept or abandoned on its measured effect | Reviewer on/off result |
 | Four files, four jobs (s10 to 22) | `AGENTS.md`, `run-eval` and `leak-check` skills, `reviewer` sub-agent, `pre-commit` hook | Each file and what changed because of it (PB 8) |
-| A read-only reviewer: "an agent that cannot write cannot break anything" (s17 to 18) | The `reviewer` sub-agent used by both builders | Review findings acted on |
+| A read-only reviewer: "an agent that cannot write cannot break anything" (s17 to 18) | The `reviewer` agent, run in a separate session on every diff | Review findings acted on |
 | "An instruction is a request; a hook is enforcement" (s19 to 20) | `leak-check` as a git hook | A blocked commit, if one happens |
 | MCP: "a standard plug, not a capability" (s24 to 31) | Not used: no external system to connect | Stated choice |
 
@@ -382,7 +384,7 @@ Two kinds. Course rules are set by the brief and the policy and cannot change. P
 | Deck of 6 slides at most; report of 5 pages including screenshots, no appendices | Deck map in section 7 | PB 12 |
 | Every fact and figure verified; every member can explain every part | Figures come from results files; anything nobody can explain is cut before the day | Policy p. 1 to 2; PB 13 |
 
-**Builder tools:** PB 8 names GitHub Copilot only. The professor said in person on 2026-10-14 that any model or agent may be used. Usman decided not to ask for written confirmation; the report names Claude Code and Codex.
+**Builder tools:** PB 8 names GitHub Copilot only. The professor said in person on 2026-10-14 that any model or agent may be used. Usman decided not to ask for written confirmation; the report's GenAI section names the agents used.
 
 ### Project rules
 
@@ -407,12 +409,12 @@ Six working days, 14 to 19 Oct, then the freeze on 20 Oct. Each milestone ends a
 | Milestone | Date | Done when | Who |
 | --- | --- | --- | --- |
 | B. Golden set | 14 Oct | `evaluation/golden_set.csv` committed with 40 labels and triggers, before any model call | Usman |
-| D. Layout and steering | 14 to 15 Oct | Starter moved into `app/` and still replies; `AGENTS.md`, both skills, the `reviewer` brief and wrappers committed one by one; the hook blocks a test commit carrying a golden-set term; the Codespace opens the app | Claude Code; Codex reviews |
-| E. Triage | 15 Oct | Demo report generated by the seeded script; the export parses (header found, `Total:` rows dropped, cost sum shown); triage fills the table with valid rows; proxy limits checked (section 8) | Claude Code; Codex writes the demo script |
-| F. First number | 16 Oct | Scorer prints per-class precision and recall, the confusion matrix and pass^3 for the golden set; Usman reads 20 outputs and writes the failure taxonomy | Codex; Usman |
-| G. The rest of the screen | 17 Oct | Reviewer verdicts in the table; dashboard totals equal the report's cost; three downloads; the summary passes the figure check; Usman has labeled about 20 summaries, then the judge's TPR and TNR against them are printed | Claude Code; Codex writes the checks |
+| D. Layout and steering | 14 to 15 Oct | Starter moved into `app/` and still replies; `AGENTS.md`, both skills, the `reviewer` agent and its symlink committed one by one; the hook blocks a test commit carrying a golden-set term; the Codespace opens the app | Builder and reviewer agents |
+| E. Triage | 15 Oct | Demo report generated by the seeded script; the export parses (header found, `Total:` rows dropped, cost sum shown); triage fills the table with valid rows; proxy limits checked (section 8) | Builder and reviewer agents |
+| F. First number | 16 Oct | Scorer prints per-class precision and recall, the confusion matrix and pass^3 for the golden set; Usman reads 20 outputs and writes the failure taxonomy | Evaluation agent session; Usman |
+| G. The rest of the screen | 17 Oct | Reviewer verdicts in the table; dashboard totals equal the report's cost; three downloads; the summary passes the figure check; Usman has labeled about 20 summaries, then the judge's TPR and TNR against them are printed | App agent session; checks from the evaluation session |
 | H. Iteration | 18 Oct | Ladder v0 to v5, batch size and reviewer on or off each scored and saved as a dated results file; what was kept and abandoned logged with the numbers | Both |
-| I. Deliverables | 19 Oct | Report within 5 pages, deck within 6 slides, demo recording; the Codespaces demo rehearsed once with a timer | Usman, with Claude and Codex |
+| I. Deliverables | 19 Oct | Report within 5 pages, deck within 6 slides, demo recording; the Codespaces demo rehearsed once with a timer | Usman, with the agents |
 | Freeze | 20 Oct | Last push before 18:00; repo public; secret scan passes | Usman |
 
 ### If time runs short

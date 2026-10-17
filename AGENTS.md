@@ -12,11 +12,11 @@ A weekly search-terms review assistant: it reads each term in a Google Ads searc
 - **Everything outside `app/` is build and proof** (`evaluation/`, `tests/`, `scripts/`, `docs/`, `.githooks/`). It never ships with the app.
 - **`app/` never imports from or reads anything outside `app/`.**
 
-## Who builds what
+## Review
 
-- **Claude builds the app** (`app/`).
-- **Codex builds the evaluation** (`evaluation/`, the scorer and checks).
-- Each reviews the other's changes before the owner commits.
+- The agent that writes a change never reviews it.
+- Review happens in a separate session with the read-only `reviewer` agent. An agent that loads agents natively uses it by name; any other agent follows `.agents/agents/reviewer.md`.
+- Evaluation code is written in a separate session from the app code it scores.
 
 ## Run it
 
