@@ -1,0 +1,11 @@
+{
+  "name": "search-term-triage",
+  "image": "mcr.microsoft.com/devcontainers/python:3.12",
+  "postCreateCommand": "pip install -r app/requirements.txt && git config core.hooksPath .githooks",
+  "forwardPorts": [8501],
+  "portsAttributes": {
+    "8501": {
+      "label": "App"
+    }
+  }
+}
