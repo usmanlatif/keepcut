@@ -28,7 +28,7 @@ streamlit run app/main.py       # once the screen exists
 
 ## Conventions
 
-- **Prompts live in `app/prompts/` as files**, never inside code, so every version can be shown and re-run.
+- **App prompts live in `app/prompts/` as files**, never inside code, so every version can be shown and re-run. Build and evaluation prompts may live with their scripts.
 - **Every model call goes through `app/core/llm.py`**, the starter's client for the course proxy. No other provider, SDK or client.
 - **Paths resolve from `app/`**, never from the working directory, so the app runs the same locally and in Codespaces.
 - **The API key lives only in `.env` or the `LLM_API_KEY` environment variable.** Never in code, notes, prompts or commits.

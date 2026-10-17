@@ -246,7 +246,7 @@ Two zones. `app/` is the product: everything the running app needs and nothing e
 | `.githooks/pre-commit` | Build | Runs `leak-check` before every commit, whichever tool or person commits |
 | `evaluation/` | Proof | Golden set, scorer, summary check, dated results; calls the app's functions, the app never reads it |
 | `tests/` | Proof | Code checks that run without the model |
-| `scripts/` | Build | `demo_terms.csv` (the 153 demo terms) and the seeded script that writes the demo report into `app/data/demo/` |
+| `scripts/` | Build | `demo_terms.csv` (the 153 demo terms), the seeded script that writes the demo report into `app/data/demo/`, and `check_proxy.py` with its test prompt (what the course model accepts) |
 | `docs/prd.md` | Build | A copy of this PRD, so the builders read the plan from the repo |
 
 - **The golden set sits outside `app/`**, so the product cannot read it by construction; `leak-check` scans `app/`
@@ -399,7 +399,7 @@ Two kinds. Course rules are set by the brief and the policy and cannot change. P
 
 ### Limits not yet checked
 
-- **The proxy model:** whether it is a reasoning model, whether it accepts temperature, its rate limit and the group's credit budget. Tested in Phase E, before the ladder runs
+- **The proxy model** (checked 2026-10-17, `evaluation/results/`): accepts `temperature=0` and JSON mode (`response_format` json_object), returns token usage, shows no reasoning tokens; about 1 to 2 seconds per small call. Triage uses temperature 0 and JSON mode. Still unknown: the rate limit and the group's credit budget, left unmeasured because finding them means hitting them
 - **Planned model calls:** about 75 for the evaluation (ladder 12, consistency 6, batch-of-1 test 40, summary check 10, reviewer runs about 5), plus development runs
 
 ## 9. Milestones

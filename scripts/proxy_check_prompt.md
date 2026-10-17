@@ -1,0 +1,1 @@
+What does a card terminal do? Reply with exactly one JSON object containing an "answer" key whose value is one sentence of at most 12 words. Do not include reasoning, Markdown, or text outside the JSON object.
