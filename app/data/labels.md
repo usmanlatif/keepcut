@@ -23,9 +23,23 @@ Typical signals: "what is a payment gateway", "card processing comparison", "how
 - Between target and monitor, choose monitor. A keyword is added on clear evidence, not on hope.
 - monitor is the safe default. There is no "unsure" label.
 
+## Intent stages
+The same four stages for every account. The stage describes the searcher; the label adds business fit.
+
+| Stage | The searcher wants to | Example | Usual label for Plover |
+| --- | --- | --- | --- |
+| transactional | buy, sign up or get a quote now | "buy card reader" | target if the business fits |
+| commercial | compare options before buying | "best pos for cafes" | target or monitor |
+| informational | learn or understand | "what is a payment gateway" | monitor |
+| navigational | reach a specific site or account | "square login" | block |
+
+The usual label is a tendency, not a rule: an unserved segment or a wrong product is block at any stage (boundary rule 4).
+
 ## Output format
-One JSON object per search term:
-{"label": "block", "trigger": "login", "reason": "Searcher is an existing Square customer looking for their account."}
+One JSON object per search term, intent first:
+{"id": "t1", "intent": "navigational", "label": "block", "trigger": "login", "reason": "Searcher is an existing Square customer looking for their account."}
+- id: the id of the term, copied exactly.
+- intent: exactly one of transactional, commercial, informational, navigational.
 - label: exactly one of target, block, monitor.
 - trigger: the word or words in the search term that decided the label, copied exactly from the term.
 - reason: one sentence.
