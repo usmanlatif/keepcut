@@ -19,11 +19,19 @@ def get_client() -> OpenAI:
     return OpenAI(base_url=base_url, api_key=api_key)
 
 
+def complete(messages: list[dict], **options) -> tuple[str, dict]:
+    """One chat call. options pass through to the API (e.g. temperature, response_format).
+    Returns the reply text and the token usage reported by the proxy (empty if none)."""
+    response = get_client().chat.completions.create(
+        model=os.environ.get("LLM_MODEL") or DEFAULT_MODEL, messages=messages, **options
+    )
+    usage = response.usage
+    tokens = {"prompt": usage.prompt_tokens, "completion": usage.completion_tokens} if usage else {}
+    return response.choices[0].message.content, tokens
+
+
 def ask(prompt: str, system: str | None = None) -> str:
     messages = ([{"role": "system", "content": system}] if system else []) + [
         {"role": "user", "content": prompt}
     ]
-    response = get_client().chat.completions.create(
-        model=os.environ.get("LLM_MODEL") or DEFAULT_MODEL, messages=messages
-    )
-    return response.choices[0].message.content
+    return complete(messages)[0]
