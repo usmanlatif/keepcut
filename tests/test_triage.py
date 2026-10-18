@@ -219,6 +219,13 @@ class RetryThenError(unittest.TestCase):
         self.assertEqual([r["label"] for r in result.rows], ["target"] * 3)
 
 
+class NoTerms(unittest.TestCase):
+    def test_no_rows_makes_no_call(self):
+        fake = FakeCall()
+        result = triage_report([], CONTEXT, call=fake)
+        self.assertEqual((result.rows, result.calls, fake.requests), ([], 0, []))
+
+
 class DistinctTerms(unittest.TestCase):
     def test_each_distinct_term_sent_once_and_copied(self):
         terms = ["Zorbix Reader ", "zorbix reader", "quillon terminal", "  ZORBIX READER"]
@@ -246,6 +253,13 @@ class Parallel(unittest.TestCase):
         result = triage([f"zorbix {i}" for i in range(200)], CONTEXT, call=slow)
         self.assertEqual(result.calls, 10)
         self.assertEqual(peak[0], PARALLEL_BATCHES)
+
+    def test_progress_reported_per_batch_in_the_calling_thread(self):
+        seen = []
+        caller = threading.get_ident()
+        triage([f"zorbix {i}" for i in range(45)], CONTEXT, call=echo,
+               progress=lambda done, total: seen.append((done, total, threading.get_ident() == caller)))
+        self.assertEqual(seen, [(1, 3, True), (2, 3, True), (3, 3, True)])
 
 
 DEMO = APP / "data" / "demo" / "search_terms_demo_synthetic.csv"

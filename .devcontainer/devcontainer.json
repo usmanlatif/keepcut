@@ -2,10 +2,12 @@
   "name": "search-term-triage",
   "image": "mcr.microsoft.com/devcontainers/python:3.12",
   "postCreateCommand": "pip install -r app/requirements.txt && git config core.hooksPath .githooks",
+  "postAttachCommand": "streamlit run app/main.py --server.port 8501 --server.headless true --server.enableCORS false --server.enableXsrfProtection false",
   "forwardPorts": [8501],
   "portsAttributes": {
     "8501": {
-      "label": "App"
+      "label": "App",
+      "onAutoForward": "openPreview"
     }
   }
 }

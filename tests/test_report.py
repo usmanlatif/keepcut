@@ -7,7 +7,7 @@ from pathlib import Path
 APP = Path(__file__).resolve().parents[1] / "app"
 sys.path.insert(0, str(APP))
 
-from core.report import ReportError, parse_report  # noqa: E402
+from core.report import ReportError, campaign_rows, campaigns, parse_report  # noqa: E402
 
 PREAMBLE = 'Search terms report\n"September 17, 2026 - October 16, 2026"\n'
 
@@ -157,6 +157,32 @@ class DemoReport(unittest.TestCase):
         term, month, cost = header.index("Search term"), header.index("Month"), header.index("Cost")
         total = next(row for row in rows if len(row) > cost and row[term] == "Total: Search terms" and row[month] == "")
         self.assertEqual(report.total_cost, round(float(total[cost].replace(",", "")), 2))
+        self.assertEqual(campaigns(report.rows), ["Plover Generic Search"])
+
+
+TWO_CAMPAIGNS = (
+    "Search term,Campaign,Ad group,Clicks,Impr.,Cost,Conversions\n"
+    "zorbix reader,Camp B,Group 1,1,10,2.00,0\n"
+    "quillon terminal,Camp A,Group 2,2,20,3.00,1\n"
+    "flarnet card,Camp B,Group 1,3,30,4.00,0\n"
+)
+
+
+class Campaigns(unittest.TestCase):
+    def test_listed_once_in_order_of_first_appearance(self):
+        self.assertEqual(campaigns(parse_report(TWO_CAMPAIGNS).rows), ["Camp B", "Camp A"])
+
+    def test_rows_for_one_campaign_only(self):
+        rows = campaign_rows(parse_report(TWO_CAMPAIGNS).rows, "Camp B")
+        self.assertEqual([r["Search term"] for r in rows], ["zorbix reader", "flarnet card"])
+        self.assertEqual({r["Campaign"] for r in rows}, {"Camp B"})
+
+
+class NoTermRows(unittest.TestCase):
+    def test_header_only_report_has_no_rows_and_no_campaigns(self):
+        report = parse_report(PREAMBLE + "Search term,Campaign,Ad group,Clicks,Impr.,Cost,Conversions\n")
+        self.assertEqual((report.row_count, report.rows, report.total_cost), (0, [], 0))
+        self.assertEqual(campaigns(report.rows), [])
 
 
 if __name__ == "__main__":

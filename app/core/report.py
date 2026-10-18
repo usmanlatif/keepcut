@@ -109,3 +109,12 @@ def parse_report(data: bytes | str) -> Report:
 
     total_cost = round(sum(r["Cost"] for r in rows), 2)
     return Report(rows=rows, row_count=len(rows), date_range=date_range, total_cost=total_cost, has_month=has_month)
+
+
+def campaigns(rows: list[dict]) -> list[str]:
+    """The campaigns in the report, in order of first appearance. Every decision is scoped to one of them."""
+    return list(dict.fromkeys(r["Campaign"] for r in rows))
+
+
+def campaign_rows(rows: list[dict], campaign: str) -> list[dict]:
+    return [r for r in rows if r["Campaign"] == campaign]

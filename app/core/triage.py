@@ -134,8 +134,9 @@ def run_batch(pending: dict[str, str], system: str, call) -> Batch:
     return batch
 
 
-def triage(terms: list[str], context: str, call=complete, batch_size: int = BATCH_SIZE) -> TriageResult:
-    """call has llm.complete's signature; tests pass a fake that returns a canned reply."""
+def triage(terms: list[str], context: str, call=complete, batch_size: int = BATCH_SIZE, progress=None) -> TriageResult:
+    """call has llm.complete's signature; tests pass a fake that returns a canned reply.
+    progress, if given, is called as progress(done, total) in the calling thread each time a batch finishes."""
     system = system_prompt(context)
     keys = [term.strip().casefold() for term in terms]
     distinct: dict[str, str] = {}  # key -> id
@@ -147,8 +148,12 @@ def triage(terms: list[str], context: str, call=complete, batch_size: int = BATC
 
     start = time.perf_counter()
     chunks = [dict(unique[b:b + batch_size]) for b in range(0, len(unique), batch_size)]
+    batches = []
     with ThreadPoolExecutor(max_workers=PARALLEL_BATCHES) as pool:
-        batches = list(pool.map(lambda chunk: run_batch(chunk, system, call), chunks))
+        for batch in pool.map(lambda chunk: run_batch(chunk, system, call), chunks):
+            batches.append(batch)
+            if progress:
+                progress(len(batches), len(chunks))
 
     result = TriageResult(rows=[], distinct_terms=len(unique))
     decided: dict[str, dict] = {}
@@ -163,6 +168,6 @@ def triage(terms: list[str], context: str, call=complete, batch_size: int = BATC
     return result
 
 
-def triage_report(rows: list[dict], context: str, call=complete) -> TriageResult:
+def triage_report(rows: list[dict], context: str, call=complete, progress=None) -> TriageResult:
     """The app's entry point: report rows in, one result per row out. Only the search term is read."""
-    return triage([row["Search term"] for row in rows], context, call=call)
+    return triage([row["Search term"] for row in rows], context, call=call, progress=progress)

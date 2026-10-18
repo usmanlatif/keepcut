@@ -1,10 +1,13 @@
 """Single place where the LLM client is created. Reads settings from the environment."""
 import os
+from pathlib import Path
 
 from dotenv import load_dotenv
 from openai import OpenAI
 
-load_dotenv()  # loads .env if present; harmless if not
+# The .env at the repository root, by exact path: the one file the app reads outside app/. Harmless if absent.
+ENV_FILE = Path(__file__).resolve().parents[2] / ".env"
+load_dotenv(ENV_FILE)
 
 # Course proxy defaults (not secrets). Only LLM_API_KEY is personal to your group.
 DEFAULT_BASE_URL = "https://llm-proxy-obfzuamujq-ew.a.run.app/v1"

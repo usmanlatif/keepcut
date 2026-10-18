@@ -10,7 +10,7 @@ A weekly search-terms review assistant: it reads each term in a Google Ads searc
 
 - **`app/` is the product.** It holds everything the running app needs and nothing else.
 - **Everything outside `app/` is build and proof** (`evaluation/`, `tests/`, `scripts/`, `docs/`, `.githooks/`). It never ships with the app.
-- **`app/` never imports from or reads anything outside `app/`.**
+- **`app/` never imports from or reads anything outside `app/`. The one exception: `app/core/llm.py` loads the `.env` at the repository root, by its exact path, for the API key.**
 
 ## Review
 
@@ -22,8 +22,7 @@ A weekly search-terms review assistant: it reads each term in a Google Ads searc
 
 ```bash
 pip install -r app/requirements.txt
-python app/main.py              # for now
-streamlit run app/main.py       # once the screen exists
+streamlit run app/main.py
 ```
 
 ## Conventions
