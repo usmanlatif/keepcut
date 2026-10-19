@@ -1,10 +1,11 @@
-"""The one screen (PRD section 2, steps 1 to 6): account, report, review terms, check, dashboard, approve."""
+"""The one screen (PRD section 2, steps 1 to 6): account, report, review terms, check, dashboard, approve and
+summary."""
 from pathlib import Path
 
 import pandas as pd
 import streamlit as st
 
-from core import dashboard, exports
+from core import dashboard, exports, summary
 from core.context import build_context
 from core.edits import apply_decision_edits
 from core.report import ReportError, campaign_rows, campaigns, parse_report
@@ -226,6 +227,9 @@ if review is None:
 else:
     if st.button("Approve and build outputs", type="primary"):
         review["approved"] = review["table"].copy()
+        review["figures"] = summary.figures(review["approved"])
+        with st.spinner("Writing the weekly summary..."):
+            review["summary"] = summary.write_summary(review["figures"], review["context"])
     clashes = exports.conflicts(review["table"])
     if len(clashes):
         st.warning("These keywords come from terms with different decisions, so they are left out of the negatives "
@@ -242,3 +246,13 @@ else:
         for column, (label, frame, name) in zip(st.columns(3), lists):
             column.download_button(f"{label} ({len(frame)} rows)", exports.to_csv(frame), file_name=name,
                                    mime="text/csv", key=f"download_{name}")
+        st.subheader("Weekly summary")
+        written = review["summary"]
+        if "error" in written:
+            st.error(written["error"])
+        else:
+            st.write(written["summary"])
+            st.markdown("**Recommendations**")
+            st.markdown("\n".join(f"- {r}" for r in written["recommendations"]))
+        with st.expander("Figures the summary was written from"):
+            st.json(review["figures"])

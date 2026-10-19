@@ -15,6 +15,7 @@ APP = Path(__file__).resolve().parents[1] / "app"
 sys.path.insert(0, str(APP))
 
 import core.reviewer  # noqa: E402
+import core.summary  # noqa: E402
 import core.triage  # noqa: E402
 from core import dashboard, exports  # noqa: E402
 from core.edits import apply_decision_edits  # noqa: E402
@@ -22,6 +23,7 @@ from core.edits import apply_decision_edits  # noqa: E402
 TAG = re.compile(r'<term id="([^"]+)">(.*?)</term>')
 REAL_TRIAGE_REPORT = core.triage.triage_report
 REAL_REVIEW = core.reviewer.review
+REAL_WRITE_SUMMARY = core.summary.write_summary
 
 TWO_CAMPAIGNS = (
     "Search term,Campaign,Ad group,Clicks,Impr.,Cost,Conversions\n"
@@ -263,7 +265,20 @@ class DashboardAndApprove(unittest.TestCase):
         def fake_review(rows, context, progress=None):
             return REAL_REVIEW(rows, context, call=challenge_careers, progress=progress)
 
-        for target, fake in (("core.triage.triage_report", fake_triage_report), ("core.reviewer.review", fake_review)):
+        self.summary_replies = []  # what the fake summary call answers, in order; empty means a valid summary
+        self.summary_figures = []
+
+        def fake_summary_call(messages, **options):
+            self.summary_figures.append(messages[1]["content"])
+            if self.summary_replies:
+                return self.summary_replies.pop(0), {}
+            return json.dumps({"summary": "One. Two. Three. Four.", "recommendations": ["Invented."]}), {}
+
+        def fake_write_summary(figures, context):
+            return REAL_WRITE_SUMMARY(figures, context, call=fake_summary_call)
+
+        for target, fake in (("core.triage.triage_report", fake_triage_report), ("core.reviewer.review", fake_review),
+                             ("core.summary.write_summary", fake_write_summary)):
             patcher = mock.patch(target, fake)
             patcher.start()
             self.addCleanup(patcher.stop)
@@ -318,6 +333,24 @@ class DashboardAndApprove(unittest.TestCase):
         self.assertEqual(list(conflict["Decision"]), ["monitor", "block"])
         self.assertTrue(any("left out of the negatives" in w.value for w in self.at.warning))
         self.assertEqual(self.downloads(), ["Negatives (0 rows)", "New keywords (0 rows)", "Watchlist (1 rows)"])
+
+    def test_summary_and_its_figures_appear_under_the_downloads_after_approval(self):
+        self.assertFalse(any(s.value == "Weekly summary" for s in self.at.subheader))
+        self.approve()
+        self.assertTrue(any(s.value == "Weekly summary" for s in self.at.subheader))
+        self.assertTrue(any(m.value == "One. Two. Three. Four." for m in self.at.markdown))
+        self.assertEqual(len(self.summary_figures), 1)
+        self.assertIn('"total_spend": "9.75"', self.summary_figures[0])
+        self.assertTrue(any(e.label == "Figures the summary was written from" for e in self.at.expander))
+        self.assertEqual(json.loads(self.at.json[0].proto.body)["total_spend"], "9.75")
+
+    def test_a_bad_summary_is_retried_once_then_shown_as_an_error(self):
+        self.summary_replies = ["not json", "still not json"]
+        self.approve()
+        self.assertEqual(len(self.summary_figures), 2)
+        self.assertTrue(any("No valid summary after one retry" in e.value for e in self.at.error))
+        self.assertFalse(any(m.value == "One. Two. Three. Four." for m in self.at.markdown))
+        self.assertEqual(len(self.downloads()), 3)
 
     def test_downloads_appear_on_approval_and_hide_after_a_change(self):
         self.assertEqual(self.downloads(), [])
