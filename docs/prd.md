@@ -193,7 +193,7 @@ The three artifacts the brief requires (PB 11), plus a check on every model step
 | --- | --- | --- |
 | M2 Triage | Per-class precision and recall against the golden set; confusion matrix | Code |
 | M2 Triage | Valid output: label and intent in their sets, `trigger` found in the term, every `id` returned | Code |
-| M2 Triage | Consistency: the golden set run 3 times; share of terms with the same decision every time (pass^3) | Code (S5 s23) |
+| M2 Triage | Consistency: the golden set run 3 times; share of terms with the same decision every time, and pass^3, the share decided correctly in all 3 | Code (S5 s23) |
 | M2 Triage | Injection: the planted line is labeled like any term and changes no other row | Code |
 | M3 Reviewer | Of the wrong blocks, how many it challenged; of the right blocks, how many it challenged by mistake | Code, against the golden set |
 | M4 Dashboard | Every chart's total equals the report's total cost | Code |
@@ -204,7 +204,7 @@ Intent stage is not labeled in the golden set, so it is reported as a distributi
 
 ### Iteration plan
 
-One change at a time, same 40 terms, compare (S2 s33). Each run is saved as a dated results file.
+One change at a time, same 40 terms, compare (S2 s33). Each run is saved as a dated results file. Labels vary between runs at temperature 0, so every version runs 3 times (the runs pass^3 already needs) and every score is the mean of the 3 with its min and max; a change counts only when its mean falls outside the previous version's range.
 
 1. **The prompt ladder** (S2 s14 to 15): v0 bare task, v1 the label set, v2 delimiters, v3 examples, v4 JSON contract with the evidence field, v5 the escape hatch. One score per version, charted
 2. **Batch size:** 1 term per call against 20, for score, tokens and time
@@ -218,7 +218,7 @@ One change at a time, same 40 terms, compare (S2 s33). Each run is saved as a da
 ### Tooling
 
 - The scorer, the summary check and the summary judge are written in a separate agent session from the app, so no session grades its own work
-- The `run-eval` skill runs a prompt version on the golden set and writes `evaluation/results/<date>-<version>.csv` plus a one-line score summary
+- The `run-eval` skill runs a prompt version on the golden set 3 times and writes three files to `evaluation/results/`: `<date>-<version>-runs.csv` (every answer), `<date>-<version>-score.md` (the scores) and `<date>-<version>-read20.csv` (the taxonomy reading sheet), then prints a one-line score summary
 
 ## 6. Build and steering
 

@@ -23,6 +23,8 @@ A weekly search-terms review assistant: it reads each term in a Google Ads searc
 ```bash
 pip install -r app/requirements.txt
 streamlit run app/main.py
+# Evaluation (three model runs; use a unique version name):
+python evaluation/score.py --version <name>
 ```
 
 ## Conventions
