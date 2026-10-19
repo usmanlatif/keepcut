@@ -197,7 +197,7 @@ The three artifacts the brief requires (PB 11), plus a check on every model step
 | M2 Triage | Injection: the planted line is labeled like any term and changes no other row | Code |
 | M3 Reviewer | Of the wrong blocks, how many it challenged; of the right blocks, how many it challenged by mistake | Code, against the golden set |
 | M4 Dashboard | Every chart's total equals the report's total cost | Code |
-| M6 Summary | Every number in the summary appears in the figures table, over 10 runs on the demo report | Code (substring, PB 3) |
+| M6 Summary | Every number in the summary appears in the figures table, over 20 summaries: one triage run of the demo report, cut into 20 seeded variants (whole report, each ad group, each month, random halves) so the figures differ; the same 20 are the ones Usman labels for the judge | Code (substring, PB 3) |
 | M6 Summary | One criterion, e.g. "the summary reports what the approved table shows": evidence quoted before PASS or FAIL, with an "unknown" exit. Checked against Usman's PASS/FAIL labels on about 20 summaries, written before the judge runs; TPR and TNR reported, PASS as the positive class | Model judge (S6, Capstone Pathway Checklist M3) |
 
 Intent stage is not labeled in the golden set, so it is reported as a distribution only, never as an accuracy.
@@ -401,7 +401,7 @@ Two kinds. Course rules are set by the brief and the policy and cannot change. P
 ### Limits not yet checked
 
 - **The proxy model** (checked 2026-10-17, `evaluation/results/`): accepts `temperature=0` and JSON mode (`response_format` json_object), returns token usage, shows no reasoning tokens; about 1 to 2 seconds per small call. Triage uses temperature 0 and JSON mode. Still unknown: the rate limit and the group's credit budget, left unmeasured because finding them means hitting them
-- **Planned model calls:** about 75 for the evaluation (ladder 12, consistency 6, batch-of-1 test 40, summary check 10, reviewer runs about 5), plus development runs
+- **Planned model calls:** about 100 for the evaluation (ladder 12, consistency 6, batch-of-1 test 40, summary check 20, summary judge 20, reviewer runs about 5), plus development runs
 
 ## 9. Milestones
 

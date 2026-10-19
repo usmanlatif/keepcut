@@ -5,7 +5,9 @@ import pandas as pd
 import streamlit as st
 
 from core.context import build_context
+from core.edits import apply_decision_edits
 from core.report import ReportError, campaign_rows, campaigns, parse_report
+from core.reviewer import review as review_blocks
 from core.triage import triage_report
 
 APP = Path(__file__).resolve().parent
@@ -20,6 +22,8 @@ COLUMNS = {
     "label": "Decision",
     "trigger": "Trigger",
     "reason": "Reason",
+    "reviewer": "Reviewer",
+    "reviewer_note": "Reviewer note",
     "Clicks": "Clicks",
     "Cost": "Cost",
     "Conversions": "Conversions",
@@ -63,10 +67,8 @@ def apply_edits():
     """Copy decision edits from the filtered editor back into the full table, then start a fresh editor so the
     positional edits are not reapplied to a view whose rows have changed."""
     edits = state[editor_key(state.view_campaign)]["edited_rows"]
-    table = state.reviews[state.view_campaign]["table"]
-    for position, change in edits.items():
-        if "Decision" in change:
-            table.loc[state.view_index[position], "Decision"] = change["Decision"]
+    stored = state.reviews[state.view_campaign]
+    stored["table"] = apply_decision_edits(stored["table"], state.view_index, edits)
     state.editor_version += 1
 
 
@@ -124,21 +126,36 @@ elif report:
 # Step 3: review terms
 st.header("3. Review terms")
 if st.button("Review terms", type="primary", disabled=not rows):
-    bar = st.progress(0.0, text="Reviewing terms...")
+    bar = st.progress(0.0, text="Triage...")
     result = triage_report(
         rows, context,
-        progress=lambda done, total: bar.progress(done / total, text=f"Batch {done} of {total}"),
+        progress=lambda done, total: bar.progress(done / total, text=f"Triage: batch {done} of {total}"),
+    )
+    bar.progress(0.0, text="Reviewer...")
+    checked = review_blocks(
+        result.rows, context,
+        progress=lambda done, total: bar.progress(done / total, text=f"Reviewer: batch {done} of {total}"),
     )
     bar.empty()
-    merged = pd.DataFrame(rows).join(pd.DataFrame(result.rows))
-    state.reviews[pick] = {"table": merged[list(COLUMNS)].rename(columns=COLUMNS), "run": result, "context": context}
+    triaged = pd.DataFrame(result.rows)
+    verdicts = [checked.results.get(tid) if label == "block" else None
+                for tid, label in zip(triaged["id"], triaged["label"])]
+    triaged["reviewer"] = [v["verdict"] if v else "" for v in verdicts]
+    triaged["reviewer_note"] = [
+        "" if not v else v["reason"] if v["verdict"] == "error" else f'{v["proposed_label"]}: {v["reason"]}'
+        for v in verdicts
+    ]
+    merged = pd.DataFrame(rows).join(triaged)
+    state.reviews[pick] = {"table": merged[list(COLUMNS)].rename(columns=COLUMNS), "run": result,
+                           "reviewer": checked, "context": context}
     state.editor_version += 1
 review = state.reviews.get(pick) if pick else None
 if review:
-    run = review["run"]
+    run, checked = review["run"], review["reviewer"]
     errors = int((review["table"]["Decision"] == "error").sum())
     st.caption(f"{run.distinct_terms} distinct terms, {run.calls} model calls, {run.seconds}s. "
-               f"Rows the model could not label: {errors}.")
+               f"Rows the model could not label: {errors}. "
+               f"Reviewer: {checked.calls} model calls, {checked.seconds}s, {checked.challenges} challenges.")
 
 # Step 4: check
 st.header("4. Check")
@@ -151,8 +168,12 @@ else:
     table = review["table"]
     counts = table["Decision"].value_counts()
     st.caption("  ·  ".join(f"{d}: {counts.get(d, 0)}" for d in DECISIONS))
-    shown = st.multiselect("Filter by decision", DECISIONS, default=DECISIONS, key="filter")
+    filter_col, challenged_col = st.columns([4, 1], vertical_alignment="bottom")
+    shown = filter_col.multiselect("Filter by decision", DECISIONS, default=DECISIONS, key="filter")
+    challenged = challenged_col.checkbox("Challenged only", key="challenged_only")
     view = table[table["Decision"].isin(shown)]
+    if challenged:
+        view = view[view["Reviewer"] == "challenge"]
     state.view_index, state.view_campaign = list(view.index), pick
     st.data_editor(
         view,
@@ -164,6 +185,7 @@ else:
         column_config={
             "Decision": st.column_config.SelectboxColumn("Decision", options=DECISIONS, required=True),
             "Reason": st.column_config.TextColumn("Reason", width="large"),
+            "Reviewer note": st.column_config.TextColumn("Reviewer note", width="large"),
             "Cost": st.column_config.NumberColumn("Cost", format="%.2f"),
         },
     )
