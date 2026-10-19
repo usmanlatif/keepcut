@@ -16,6 +16,7 @@ sys.path.insert(0, str(APP))
 
 import core.reviewer  # noqa: E402
 import core.triage  # noqa: E402
+from core import dashboard, exports  # noqa: E402
 from core.edits import apply_decision_edits  # noqa: E402
 
 TAG = re.compile(r'<term id="([^"]+)">(.*?)</term>')
@@ -208,10 +209,129 @@ class DecisionEdits(unittest.TestCase):
         pd.testing.assert_frame_equal(updated, expected)
         self.assertEqual(table.loc[13, "Decision"], "block")  # the input is not changed in place
 
+    def test_an_edit_applies_to_every_row_of_the_term(self):
+        table = pd.DataFrame({
+            "Month": ["August 2026", "September 2026", "September 2026"],
+            "Term": ["quillon reader", "quillon reader", "vexmo hub"],
+            "Ad group": ["Group 1", "Group 1", "Group 2"],
+            "Decision": ["target", "target", "monitor"],
+            "Cost": [4.10, 2.35, 1.05],
+        }, index=[20, 21, 22])
+        # A filtered view that shows only September's row of the term
+        view = table[table["Month"] == "September 2026"]
+        view = view[view["Decision"] == "target"]
+        self.assertEqual(list(view.index), [21])
+
+        updated = apply_decision_edits(table, list(view.index), {0: {"Decision": "block"}})
+        self.assertEqual(list(updated["Decision"]), ["block", "block", "monitor"])
+        self.assertEqual(list(exports.negatives(updated, "Camp X")["Keyword"]), ["quillon reader"])
+        self.assertEqual(len(exports.new_keywords(updated, "Camp X")), 0)
+        expected = round(float(updated["Cost"].sum()), 2)
+        for frame in (dashboard.spend_by_decision(updated), dashboard.spend_by_ad_group(updated)):
+            self.assertEqual(round(float(frame["Cost"].sum()), 2), expected)
+        for grid in (dashboard.month_by_decision(updated), dashboard.intent_by_decision(
+                updated.assign(**{"Intent stage": "commercial"}))):
+            self.assertEqual(round(float(grid.to_numpy().sum()), 2), expected)
+
+    def test_an_edit_reaches_spellings_triage_counts_as_one_term(self):
+        table = pd.DataFrame({"Term": ["zorbix straße", "Zorbix Strasse ", "zorbix strase"],
+                              "Decision": ["target", "target", "target"]})
+        updated = apply_decision_edits(table, [0, 1, 2], {0: {"Decision": "block"}})
+        self.assertEqual(list(updated["Decision"]), ["block", "block", "target"])
+
     def test_edits_to_other_columns_are_ignored(self):
         table = pd.DataFrame({"Term": ["zorbix login"], "Decision": ["block"]}, index=[5])
         updated = apply_decision_edits(table, [5], {0: {"Term": "invented"}})
         pd.testing.assert_frame_equal(updated, table)
+
+
+TWO_MONTHS = (
+    "Month,Search term,Campaign,Ad group,Clicks,Impr.,Cost,Conversions\n"
+    "August 2026,zorbix card reader,Camp M,Group 1,1,10,2.00,0\n"
+    "September 2026,zorbix card reader,Camp M,Group 1,2,20,3.50,0\n"
+    "September 2026,quillon pos system,Camp M,Group 2,3,30,4.25,1\n"
+)
+
+
+class DashboardAndApprove(unittest.TestCase):
+    """Steps 5 and 6 on the screen, with every term answered as monitor by a fake triage call."""
+
+    def setUp(self):
+        def fake_triage_report(rows, context, progress=None):
+            return REAL_TRIAGE_REPORT(rows, context, call=monitor_everything, progress=progress)
+
+        def fake_review(rows, context, progress=None):
+            return REAL_REVIEW(rows, context, call=challenge_careers, progress=progress)
+
+        for target, fake in (("core.triage.triage_report", fake_triage_report), ("core.reviewer.review", fake_review)):
+            patcher = mock.patch(target, fake)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        self.at = AppTest.from_file(str(APP / "main.py"), default_timeout=10).run()
+        self.at.text_area(key="paste").input(TWO_MONTHS).run()
+        next(b for b in self.at.button if b.label == "Review terms").click().run()
+
+    def table(self):
+        return self.at.session_state["reviews"]["Camp M"]["table"]
+
+    def metric(self, label):
+        return next(m.value for m in self.at.metric if m.label == label)
+
+    def downloads(self):
+        return [d.proto.label for d in self.at.get("download_button")]
+
+    def approve(self):
+        next(b for b in self.at.button if b.label == "Approve and build outputs").click().run()
+
+    def test_month_is_kept_and_the_tiles_follow_a_changed_decision(self):
+        self.assertEqual(list(self.table().columns)[0], "Month")
+        self.assertEqual(self.metric("Total spend"), "9.75")
+        self.assertEqual(self.metric("Spend on blocked terms"), "0.00")
+        self.assertEqual(self.metric("New keywords found"), "0")
+        self.assertTrue(any(s.value == "Month over month spend by decision" for s in self.at.subheader))
+
+        table = self.table()
+        table.loc[table["Term"] == "zorbix card reader", "Decision"] = "block"
+        table.loc[table["Term"] == "quillon pos system", "Decision"] = "target"
+        self.at.run()
+        self.assertEqual(self.metric("Spend on blocked terms"), "5.50")
+        self.assertEqual(self.metric("New keywords found"), "1")
+
+    def test_no_month_column_means_no_month_chart(self):
+        self.at.text_area(key="paste").input(TWO_CAMPAIGNS).run()
+        self.at.selectbox(key="campaign_pick").select("Camp B").run()
+        next(b for b in self.at.button if b.label == "Review terms").click().run()
+        self.assertNotIn("Month", self.at.session_state["reviews"]["Camp B"]["table"].columns)
+        self.assertFalse(any(s.value == "Month over month spend by decision" for s in self.at.subheader))
+
+    def test_a_conflict_is_listed_under_the_approve_button(self):
+        def listed():
+            return [d.value for d in self.at.dataframe if list(d.value.columns) == exports.CONFLICT_COLUMNS]
+
+        self.assertEqual(listed(), [])
+        table = self.table()
+        table.loc[table["Term"] == "quillon pos system", ["Term", "Decision"]] = ['"zorbix card reader"', "block"]
+        self.at.run()
+        self.approve()
+        [conflict] = listed()
+        self.assertEqual(list(conflict["Search term"]), ["zorbix card reader", '"zorbix card reader"'])
+        self.assertEqual(list(conflict["Decision"]), ["monitor", "block"])
+        self.assertTrue(any("left out of the negatives" in w.value for w in self.at.warning))
+        self.assertEqual(self.downloads(), ["Negatives (0 rows)", "New keywords (0 rows)", "Watchlist (1 rows)"])
+
+    def test_downloads_appear_on_approval_and_hide_after_a_change(self):
+        self.assertEqual(self.downloads(), [])
+        self.approve()
+        self.assertEqual(self.downloads(), ["Negatives (0 rows)", "New keywords (0 rows)", "Watchlist (2 rows)"])
+
+        table = self.table()
+        table.loc[table["Term"] == "zorbix card reader", "Decision"] = "block"
+        self.at.run()
+        self.assertEqual(self.downloads(), [])
+        self.assertTrue(any("Approve again" in w.value for w in self.at.warning))
+
+        self.approve()
+        self.assertEqual(self.downloads(), ["Negatives (1 rows)", "New keywords (0 rows)", "Watchlist (1 rows)"])
 
 
 if __name__ == "__main__":

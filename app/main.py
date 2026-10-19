@@ -1,9 +1,10 @@
-"""The one screen (PRD section 2, steps 1 to 4): account, report, review terms, check."""
+"""The one screen (PRD section 2, steps 1 to 6): account, report, review terms, check, dashboard, approve."""
 from pathlib import Path
 
 import pandas as pd
 import streamlit as st
 
+from core import dashboard, exports
 from core.context import build_context
 from core.edits import apply_decision_edits
 from core.report import ReportError, campaign_rows, campaigns, parse_report
@@ -16,6 +17,7 @@ DEMO = APP / "data" / "demo" / "search_terms_demo_synthetic.csv"
 DEFAULT_CAMPAIGN = "Plover Generic Search"
 DECISIONS = ["target", "block", "monitor", "error"]
 COLUMNS = {
+    "Month": "Month",  # kept only when the report has a Month column
     "Search term": "Term",
     "Ad group": "Ad group",
     "intent": "Intent stage",
@@ -146,7 +148,8 @@ if st.button("Review terms", type="primary", disabled=not rows):
         for v in verdicts
     ]
     merged = pd.DataFrame(rows).join(triaged)
-    state.reviews[pick] = {"table": merged[list(COLUMNS)].rename(columns=COLUMNS), "run": result,
+    kept = [c for c in COLUMNS if c != "Month" or report.has_month]
+    state.reviews[pick] = {"table": merged[kept].rename(columns=COLUMNS), "run": result,
                            "reviewer": checked, "context": context}
     state.editor_version += 1
 review = state.reviews.get(pick) if pick else None
@@ -189,3 +192,53 @@ else:
             "Cost": st.column_config.NumberColumn("Cost", format="%.2f"),
         },
     )
+
+# Step 5: dashboard
+st.header("5. Dashboard")
+if review is None:
+    st.info("Run the review to see the dashboard.")
+else:
+    table = review["table"]
+    figures = dashboard.tiles(table)
+    spend_col, blocked_col, new_col = st.columns(3)
+    spend_col.metric("Total spend", f"{figures['total_spend']:,.2f}")
+    blocked_col.metric("Spend on blocked terms", f"{figures['blocked_spend']:,.2f}")
+    new_col.metric("New keywords found", figures["new_keywords"])
+    decision_col, intent_col = st.columns(2)
+    decision_col.subheader("Spend by decision")
+    decision_col.bar_chart(dashboard.spend_by_decision(table), x="Decision", y="Cost", sort=False)
+    intent_col.subheader("Spend by intent stage")
+    intent_col.bar_chart(dashboard.spend_by_intent(table), x="Intent stage", y="Cost", sort=False)
+    group_col, grid_col = st.columns(2)
+    group_col.subheader("Spend by ad group")
+    group_col.bar_chart(dashboard.spend_by_ad_group(table), x="Ad group", y="Cost")
+    grid_col.subheader("Intent stage against decision")
+    grid_col.bar_chart(dashboard.intent_by_decision(table), sort=False, y_label="Cost")
+    months = dashboard.month_by_decision(table)
+    if months is not None:
+        st.subheader("Month over month spend by decision")
+        st.bar_chart(months, sort=False, y_label="Cost")
+
+# Step 6: approve
+st.header("6. Approve")
+if review is None:
+    st.info("Run the review to approve its decisions.")
+else:
+    if st.button("Approve and build outputs", type="primary"):
+        review["approved"] = review["table"].copy()
+    clashes = exports.conflicts(review["table"])
+    if len(clashes):
+        st.warning("These keywords come from terms with different decisions, so they are left out of the negatives "
+                   "and new keywords files. Give their terms one decision in step 4, then approve again.")
+        st.dataframe(clashes, hide_index=True)
+    approved = review.get("approved")
+    if approved is not None and not approved["Decision"].equals(review["table"]["Decision"]):
+        st.warning("A decision changed after approval. Approve again to build the outputs.")
+    elif approved is not None:
+        st.caption("Built from the table as approved.")
+        lists = [("Negatives", exports.negatives(approved, pick), "negatives.csv"),
+                 ("New keywords", exports.new_keywords(approved, pick), "new_keywords.csv"),
+                 ("Watchlist", exports.watchlist(approved), "watchlist.csv")]
+        for column, (label, frame, name) in zip(st.columns(3), lists):
+            column.download_button(f"{label} ({len(frame)} rows)", exports.to_csv(frame), file_name=name,
+                                   mime="text/csv", key=f"download_{name}")

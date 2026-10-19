@@ -111,6 +111,11 @@ def parse_report(data: bytes | str) -> Report:
     return Report(rows=rows, row_count=len(rows), date_range=date_range, total_cost=total_cost, has_month=has_month)
 
 
+def term_key(term: str) -> str:
+    """One distinct term: trimmed, case folded (so "ß" and "ss" match). The same key triage counts terms by."""
+    return str(term).strip().casefold()
+
+
 def campaigns(rows: list[dict]) -> list[str]:
     """The campaigns in the report, in order of first appearance. Every decision is scoped to one of them."""
     return list(dict.fromkeys(r["Campaign"] for r in rows))

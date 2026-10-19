@@ -13,7 +13,7 @@ APP = Path(__file__).resolve().parents[1] / "app"
 sys.path.insert(0, str(APP))
 
 from core.context import build_context  # noqa: E402
-from core.report import parse_report  # noqa: E402
+from core.report import parse_report, term_key  # noqa: E402
 from core.triage import INTENTS, LABELS, PARALLEL_BATCHES, triage, triage_report  # noqa: E402
 
 TAG = re.compile(r'<term id="([^"]+)">(.*?)</term>')
@@ -321,6 +321,24 @@ class Context(unittest.TestCase):
         self.assertIn("Camp A", CONTEXT)
         self.assertIn(labels, CONTEXT)
         self.assertIn("## Intent stages", CONTEXT)
+
+
+class TermKeyMatchesTriage(unittest.TestCase):
+    """term_key in core/report.py is a second definition of the key triage counts terms by (triage.py is frozen by
+    its score-file hash). This fails if the two drift apart."""
+
+    def test_triage_sends_exactly_the_distinct_term_keys(self):
+        terms = ["zorbix straße", "zorbix strasse", "Zorbix STRASSE", "  zorbix strasse ", "quillon reader",
+                 "QUILLON reader", " quillon reader", "flarnet guide"]
+        sent = []
+
+        def recording(messages, **options):
+            sent.extend(unescape(term) for _, term in TAG.findall(messages[1]["content"]))
+            return echo(messages, **options)
+
+        triage(terms, CONTEXT, call=recording)
+        self.assertEqual(len(sent), len({term_key(t) for t in terms}))
+        self.assertEqual({term_key(t) for t in sent}, {term_key(t) for t in terms})
 
 
 if __name__ == "__main__":
