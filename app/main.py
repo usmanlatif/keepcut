@@ -2,7 +2,6 @@
 summary."""
 from pathlib import Path
 
-import pandas as pd
 import streamlit as st
 
 from core import dashboard, exports, summary
@@ -10,6 +9,7 @@ from core.context import build_context
 from core.edits import apply_decision_edits
 from core.report import ReportError, campaign_rows, campaigns, parse_report
 from core.reviewer import review as review_blocks
+from core.table import build_table
 from core.triage import triage_report
 
 APP = Path(__file__).resolve().parent
@@ -17,20 +17,6 @@ PROFILE = APP / "data" / "business_profile.md"
 DEMO = APP / "data" / "demo" / "search_terms_demo_synthetic.csv"
 DEFAULT_CAMPAIGN = "Plover Generic Search"
 DECISIONS = ["target", "block", "monitor", "error"]
-COLUMNS = {
-    "Month": "Month",  # kept only when the report has a Month column
-    "Search term": "Term",
-    "Ad group": "Ad group",
-    "intent": "Intent stage",
-    "label": "Decision",
-    "trigger": "Trigger",
-    "reason": "Reason",
-    "reviewer": "Reviewer",
-    "reviewer_note": "Reviewer note",
-    "Clicks": "Clicks",
-    "Cost": "Cost",
-    "Conversions": "Conversions",
-}
 
 st.set_page_config(page_title="Search term triage", layout="wide")
 state = st.session_state
@@ -140,17 +126,7 @@ if st.button("Review terms", type="primary", disabled=not rows):
         progress=lambda done, total: bar.progress(done / total, text=f"Reviewer: batch {done} of {total}"),
     )
     bar.empty()
-    triaged = pd.DataFrame(result.rows)
-    verdicts = [checked.results.get(tid) if label == "block" else None
-                for tid, label in zip(triaged["id"], triaged["label"])]
-    triaged["reviewer"] = [v["verdict"] if v else "" for v in verdicts]
-    triaged["reviewer_note"] = [
-        "" if not v else v["reason"] if v["verdict"] == "error" else f'{v["proposed_label"]}: {v["reason"]}'
-        for v in verdicts
-    ]
-    merged = pd.DataFrame(rows).join(triaged)
-    kept = [c for c in COLUMNS if c != "Month" or report.has_month]
-    state.reviews[pick] = {"table": merged[kept].rename(columns=COLUMNS), "run": result,
+    state.reviews[pick] = {"table": build_table(rows, result.rows, report.has_month, checked.results), "run": result,
                            "reviewer": checked, "context": context}
     state.editor_version += 1
 review = state.reviews.get(pick) if pick else None

@@ -107,7 +107,7 @@ Three model calls (triage, reviewer, summary); everything else is code. Each mod
 - **In:** a figures table computed by code (spend by decision, top blocked terms by cost, new keywords, spend by intent stage, ad groups rising month over month) as JSON
 - **Out:** 4 to 6 plain sentences for a client, plus one to three recommendations
 - **Prompt design:** use only figures from the table, quote them exactly; say "not enough data" rather than infer; no figures from outside the table
-- **Check:** every number in the summary appears in the figures table (substring test)
+- **Check:** every number in the summary equals a number in the figures table, written the same way (exact match per number; a substring test passes "234" inside "1,234.56")
 
 ## 4. Data
 
@@ -197,7 +197,7 @@ The three artifacts the brief requires (PB 11), plus a check on every model step
 | M2 Triage | Injection: the planted line is labeled like any term and changes no other row | Code |
 | M3 Reviewer | Of the wrong blocks, how many it challenged; of the right blocks, how many it challenged by mistake | Code, against the golden set |
 | M4 Dashboard | Every chart's total equals the report's total cost | Code |
-| M6 Summary | Every number in the summary appears in the figures table, and no number is written as a word ("two" to "twenty"; every figure is in digits, so a number word is one the model made; "one" is skipped as too common in prose), over 20 summaries: one triage run of the demo report, cut into 20 seeded variants (whole report, each ad group, each month, random halves) so the figures differ; the same 20 are the ones Usman labels for the judge | Code (substring, PB 3) |
+| M6 Summary | Every number in the summary appears in the figures table, and no number is written as a word ("two" to "twenty"; every figure is in digits, so a number word is one the model made; "one" is skipped as too common in prose), over 20 summaries: one triage run of the demo report, cut into 20 seeded variants (whole report, each ad group, each month, random halves) so the figures differ; the same 20 are the ones Usman labels for the judge | Code (exact match per number, PB 3) |
 | M6 Summary | One criterion, e.g. "the summary reports what the approved table shows": evidence quoted before PASS or FAIL, with an "unknown" exit. Checked against Usman's PASS/FAIL labels on about 20 summaries, written before the judge runs; TPR and TNR reported, PASS as the positive class | Model judge (S6, Capstone Pathway Checklist M3) |
 
 Intent stage is not labeled in the golden set, so it is reported as a distribution only, never as an accuracy.
