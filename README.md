@@ -15,7 +15,7 @@ KeepCut reads each term against your business profile and drafts a decision: tar
 The app is one screen with six steps:
 
 1. **Account**: edit the business profile and see exactly what the model is given.
-2. **Report**: upload or paste a search terms export, or load the demo, then pick a campaign.
+2. **Report**: upload or paste a search terms export, then pick a campaign.
 3. **Review terms**: the model drafts a decision and reason for each term, and a reviewer challenges the blocks.
 4. **Check**: filter the table, read the reasons and reviewer notes, and change any decision.
 5. **Dashboard**: see spend by decision, intent stage and ad group.
