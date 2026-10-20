@@ -1,0 +1,121 @@
+run,id,search_term,golden_label,golden_trigger,intent,label,trigger,reason
+1,GS-002,toast pos login,block,login,navigational,block,toast pos login,Navigational to competitor login; boundary rule 1 blocks competitor navigation.
+1,GS-004,high risk merchant account,block,high risk,transactional,block,high risk,Unserved high-risk segment; boundary rule 4 blocks regardless of intent.
+1,GS-007,free credit card processing,block,free,transactional,block,free credit card processing,Plover doesn’t offer free processing; boundary rule 3 blocks free.
+1,GS-009,sd card reader for iphone,block,sd card reader,transactional,monitor,sd card reader,Unclear/likely wrong product; monitor due to unclear intent and fit.
+1,GS-011,merchant account loan,block,loan,transactional,block,merchant account loan,"Requests a loan, which Plover doesn’t sell; wrong product blocked."
+1,GS-012,clover pos pricing,block,clover,commercial,monitor,clover pos pricing,Competitor pricing research; boundary rule 1 blocks competitor research for this campaign.
+1,GS-013,accept credit card payments online without merchant account,block,without merchant,informational,monitor,without merchant account,Informational about alternatives; unclear fit since Plover requires merchant account setup.
+1,GS-014,square restaurant pos,block,square,transactional,target,square restaurant pos,Transactional competitor-switch intent for restaurant POS; boundary rule 1 targets switching.
+1,GS-015,bitcoin merchant account,block,bitcoin,transactional,block,bitcoin,Unserved crypto segment; boundary rule 4 blocks.
+1,GS-018,international merchant account,block,international,transactional,block,international,Non-US intent; boundary rule 4 blocks businesses outside the US.
+1,GS-020,square pos customer service,block,customer service,navigational,block,customer service,Competitor support/customer service navigation; boundary rule 1 blocks navigation.
+1,GS-023,casino merchant account,block,casino,transactional,block,casino,Unserved gambling segment; boundary rule 4 blocks.
+1,GS-025,toast pos news today,block,news,informational,monitor,toast pos news today,"Competitor news intent; not a clear setup/switch query, so monitor."
+1,GS-026,free mobile credit card processing,block,free,transactional,block,free mobile credit card processing,Plover doesn’t offer free processing; boundary rule 3 blocks free.
+1,GS-029,tarot card reader,block,tarot,transactional,monitor,tarot card reader,Unclear card-reader intent not tied to payments; monitor for relevance.
+1,GS-031,paypal merchant account,block,paypal,transactional,block,paypal merchant account,Competitor merchant account search without clear switching; boundary rule 1 blocks competitor navigation.
+1,GS-033,offshore merchant account,block,offshore,transactional,block,offshore,Non-US/offshore intent; boundary rule 4 blocks businesses outside the US.
+1,GS-035,google merchant account,block,google,transactional,block,google merchant account,Competitor merchant account search; boundary rule 1 blocks competitor navigation.
+1,GS-036,square pos system cost,block,square,commercial,monitor,cost,Pricing/cost research for competitor POS; boundary rule 1 blocks competitor research.
+1,GS-038,merchant account activate phonepe number,block,phonepe,transactional,monitor,activate phonepe number,Unclear payment method/activation intent; monitor because fit isn’t specific to Plover setup.
+1,GS-040,stripe merchant account,block,stripe,transactional,block,stripe,Navigational/competitor intent without switching; boundary rule 1 blocks competitor-name searches.
+1,GS-003,what is a merchant account,monitor,what is,informational,monitor,what is a merchant account,Informational definition query; boundary rule 2 routes concept questions to monitor.
+1,GS-006,square credit card processing fees,block,square,commercial,block,square,Competitor fees comparison without switching intent; boundary rule 1 blocks competitor research.
+1,GS-017,credit card processing fee calculator,monitor,calculator,commercial,monitor,calculator,Commercial pricing tool intent; boundary rule 2 makes pricing comparisons monitor.
+1,GS-021,ach merchant account,monitor,ach,transactional,block,ach,Wrong product type for this campaign; Plover focuses on card processing and gateway.
+1,GS-028,clover pos reviews,block,clover,informational,block,clover,Competitor review intent; boundary rule 1 blocks competitor research.
+1,GS-032,cost of credit card processing,monitor,cost,commercial,monitor,cost,Commercial cost research; boundary rule 2 makes pricing questions monitor.
+1,GS-001,credit card processing for small business,target,small business,transactional,target,credit card processing for small business,Transactional setup intent for a served segment; fits Plover card processing.
+1,GS-005,retail merchant account,target,retail,transactional,target,retail merchant account,Transactional merchant account intent for a served retail segment; target.
+1,GS-008,how to get a merchant account,target,get a merchant account,transactional,target,how to get a merchant account,Setup intent for merchant accounts; boundary rule 2 makes setup queries target.
+1,GS-010,best card reader for small business,target,card reader for small business,transactional,target,best card reader,Transactional terminal intent for small businesses; target.
+1,GS-016,cheap credit card processing,target,cheap,commercial,monitor,cheap,Pricing-seeking intent without clear switching; boundary rule 2 keeps pricing research monitor.
+1,GS-019,mobile credit card processing,target,mobile,transactional,target,mobile credit card processing,Transactional mobile processing intent for served small businesses; target.
+1,GS-022,credit card processing springfield,target,springfield,transactional,monitor,springfield,Local intent but unclear product/segment; monitor until more specific.
+1,GS-024,online payment processing for small business,target,online,transactional,target,online payment processing for small business,Transactional gateway intent for served ecommerce/small businesses; target.
+1,GS-027,merchant account setup,target,setup,transactional,target,merchant account setup,Setup intent for merchant accounts; boundary rule 2 makes setup queries target.
+1,GS-030,credit card processing machines for small business,target,processing machines,transactional,target,credit card processing machines,Terminal hardware intent for small businesses; target.
+1,GS-034,small business merchant account,target,small business,transactional,target,small business merchant account,Transactional merchant account intent for a served segment; target.
+1,GS-037,credit card processing hardware for sale,target,hardware,transactional,target,credit card processing hardware,Hardware purchase intent for terminals; target.
+1,GS-039,low cost credit card processing,target,low cost,commercial,monitor,low cost,Pricing-focused intent; boundary rule 2 keeps cost research monitor.
+2,GS-002,toast pos login,block,login,navigational,block,login,Navigational to competitor account; boundary rule 1 blocks competitor navigation.
+2,GS-004,high risk merchant account,block,high risk,transactional,block,high risk,Unserved high-risk segment; boundary rule 4 blocks regardless of intent.
+2,GS-007,free credit card processing,block,free,transactional,block,free credit card processing,Plover never offers free processing; boundary rule 3 blocks free processing.
+2,GS-009,sd card reader for iphone,block,sd card reader,transactional,monitor,sd card reader,Unclear/irrelevant device intent; monitor as it doesn’t match card processing setup.
+2,GS-011,merchant account loan,block,loan,transactional,block,loan,Plover doesn’t sell loans; wrong product so block.
+2,GS-012,clover pos pricing,block,clover,commercial,monitor,pricing,"Commercial pricing comparison for competitor; no clear switch intent, so monitor."
+2,GS-013,accept credit card payments online without merchant account,block,without merchant,informational,monitor,without merchant account,Informational about alternatives; unclear fit for Plover merchant account setup.
+2,GS-014,square restaurant pos,block,square,transactional,target,square restaurant pos,Transactional competitor-switch intent for restaurant POS; boundary rule 1 targets.
+2,GS-015,bitcoin merchant account,block,bitcoin,transactional,block,bitcoin,Unserved crypto segment; boundary rule 4 blocks.
+2,GS-018,international merchant account,block,international,transactional,block,international,Unserved non-US intent; boundary rule 4 blocks.
+2,GS-020,square pos customer service,block,customer service,navigational,block,customer service,Navigational to competitor support; boundary rule 1 blocks competitor navigation.
+2,GS-023,casino merchant account,block,casino,transactional,block,casino,Unserved gambling segment; boundary rule 4 blocks.
+2,GS-025,toast pos news today,block,news,informational,block,news,"Competitor news intent, not setup; boundary rule 1 blocks competitor non-switch."
+2,GS-026,free mobile credit card processing,block,free,transactional,block,free mobile credit card processing,Plover never offers free processing; boundary rule 3 blocks free processing.
+2,GS-029,tarot card reader,block,tarot,transactional,block,tarot card reader,Wrong product (tarot reader) not card processing; block.
+2,GS-031,paypal merchant account,block,paypal,transactional,monitor,paypal merchant account,"Competitor merchant account search; unclear switch intent, so monitor."
+2,GS-033,offshore merchant account,block,offshore,transactional,block,offshore,Unserved non-US/offshore intent; boundary rule 4 blocks.
+2,GS-035,google merchant account,block,google,transactional,block,google merchant account,Unclear/likely non-Plover provider; wrong product/brand navigation so block.
+2,GS-036,square pos system cost,block,square,commercial,monitor,cost,"Commercial cost research for competitor POS; no clear switch intent, so monitor."
+2,GS-038,merchant account activate phonepe number,block,phonepe,transactional,block,phonepe number,"Wrong provider setup request; not Plover and not a switch intent, so block."
+2,GS-040,stripe merchant account,block,stripe,transactional,block,stripe merchant account,Navigational-to-competitor intent; boundary rule 1 blocks competitor-specific setup searches.
+2,GS-003,what is a merchant account,monitor,what is,informational,monitor,what is a merchant account,Informational definition search; boundary rule 2 sends concept questions to monitor.
+2,GS-006,square credit card processing fees,block,square,commercial,block,square credit card processing fees,Competitor fees comparison without switching intent; boundary rule 1 blocks competitor research.
+2,GS-017,credit card processing fee calculator,monitor,calculator,commercial,monitor,fee calculator,Commercial pricing tool intent; boundary rule 2 treats pricing comparisons as monitor.
+2,GS-021,ach merchant account,monitor,ach,transactional,block,ach merchant account,"Wrong product for this campaign; Plover sells card processing and gateways, not ACH accounts."
+2,GS-028,clover pos reviews,block,clover,informational,block,clover pos reviews,Competitor review intent; boundary rule 1 blocks competitor research.
+2,GS-032,cost of credit card processing,monitor,cost,commercial,monitor,cost of credit card processing,Commercial cost research; boundary rule 2 makes pricing comparisons monitor.
+2,GS-001,credit card processing for small business,target,small business,transactional,target,credit card processing for small business,Transactional intent to set up card processing for a served segment.
+2,GS-005,retail merchant account,target,retail,transactional,target,retail merchant account,Transactional setup intent for a served segment (retail).
+2,GS-008,how to get a merchant account,target,get a merchant account,transactional,target,how to get a merchant account,Setup intent for merchant accounts; boundary rule 2 targets setup questions.
+2,GS-010,best card reader for small business,target,card reader for small business,commercial,target,best card reader for small business,Commercial buying intent for terminals; served segment and product fit.
+2,GS-016,cheap credit card processing,target,cheap,commercial,block,cheap credit card processing,Price-only intent; boundary rule 3/offer fit not guaranteed and risks free/low-cost mismatch.
+2,GS-019,mobile credit card processing,target,mobile,transactional,target,mobile credit card processing,Transactional intent for mobile card processing; served segment and product fit.
+2,GS-022,credit card processing springfield,target,springfield,transactional,monitor,credit card processing springfield,Local intent but unclear segment/product; monitor until more specific evidence appears.
+2,GS-024,online payment processing for small business,target,online,transactional,target,online payment processing for small business,Transactional gateway setup intent for a served segment (e-commerce/small business).
+2,GS-027,merchant account setup,target,setup,transactional,target,merchant account setup,Transactional setup intent; boundary rule 2 targets setup questions.
+2,GS-030,credit card processing machines for small business,target,processing machines,transactional,target,credit card processing machines for small business,Transactional intent to buy terminals/hardware for a served segment.
+2,GS-034,small business merchant account,target,small business,transactional,target,small business merchant account,Transactional intent for merchant accounts for a served segment.
+2,GS-037,credit card processing hardware for sale,target,hardware,transactional,target,credit card processing hardware for sale,Transactional hardware purchase intent; product fit with terminals.
+2,GS-039,low cost credit card processing,target,low cost,commercial,block,low cost credit card processing,Low-cost/price-only intent risks free/unsupported positioning; block to protect lead quality.
+3,GS-002,toast pos login,block,login,navigational,block,toast pos login,Navigational intent to a competitor login; boundary rule 1 blocks competitor navigation.
+3,GS-004,high risk merchant account,block,high risk,transactional,block,high risk,Unserved high-risk segment; boundary rule 4 blocks high-risk merchants.
+3,GS-007,free credit card processing,block,free,transactional,block,free credit card processing,Plover never offers free processing; boundary rule 3 blocks 'free' processing.
+3,GS-009,sd card reader for iphone,block,sd card reader,transactional,monitor,sd card reader,Unclear/likely wrong product (SD reader) for card processing; monitor due to unreadable intent.
+3,GS-011,merchant account loan,block,loan,transactional,block,merchant account loan,Loans/MCA not sold by Plover; boundary rule blocks unoffered product.
+3,GS-012,clover pos pricing,block,clover,commercial,monitor,clover pos pricing,"Commercial pricing comparison; boundary rule 1 says competitor research is block, so monitor is safer."
+3,GS-013,accept credit card payments online without merchant account,block,without merchant,informational,monitor,without merchant account,Informational about alternatives to merchant accounts; monitor because intent isn’t clearly a setup request.
+3,GS-014,square restaurant pos,block,square,commercial,monitor,square restaurant pos,"Competitor POS search without clear switching intent; boundary rule 1 makes competitor research block, so monitor."
+3,GS-015,bitcoin merchant account,block,bitcoin,transactional,block,bitcoin,Unserved crypto segment; boundary rule 4 blocks crypto merchants.
+3,GS-018,international merchant account,block,international,transactional,block,international,Non-US signal; boundary rule 4 blocks businesses outside the US.
+3,GS-020,square pos customer service,block,customer service,navigational,block,customer service,Navigational support intent for a competitor; boundary rule 1 blocks competitor navigation.
+3,GS-023,casino merchant account,block,casino,transactional,block,casino,Unserved gambling segment; boundary rule 4 blocks high-risk gambling merchants.
+3,GS-025,toast pos news today,block,news,informational,monitor,toast pos news today,"Informational news about a competitor; boundary rule 1 blocks competitor research, so monitor."
+3,GS-026,free mobile credit card processing,block,free,transactional,block,free mobile credit card processing,Plover never offers free processing; boundary rule 3 blocks 'free' processing.
+3,GS-029,tarot card reader,block,tarot,transactional,monitor,tarot card reader,Wrong product category (tarot reader) not related to payments; monitor due to unclear intent.
+3,GS-031,paypal merchant account,block,paypal,transactional,block,paypal merchant account,Competitor merchant account search; boundary rule 1 blocks competitor navigation without switching intent.
+3,GS-033,offshore merchant account,block,offshore,transactional,block,offshore,Non-US/offshore signal; boundary rule 4 blocks businesses outside the US.
+3,GS-035,google merchant account,block,google,transactional,block,google merchant account,Competitor/other provider merchant account search; boundary rule 1 blocks competitor navigation.
+3,GS-036,square pos system cost,block,square,commercial,monitor,square pos system cost,"Commercial cost comparison for a competitor; boundary rule 1 treats competitor research as block, so monitor."
+3,GS-038,merchant account activate phonepe number,block,phonepe,transactional,monitor,activate,Setup intent is unclear and references a specific phonepe number; monitor for clearer merchant account setup intent.
+3,GS-040,stripe merchant account,block,stripe,transactional,block,stripe merchant account,Navigational to a competitor; boundary rule 1 blocks competitor-specific setup searches.
+3,GS-003,what is a merchant account,monitor,what is,informational,monitor,what is a merchant account,Informational definition; boundary rule 2 routes concept questions to monitor.
+3,GS-006,square credit card processing fees,block,square,commercial,block,square credit card processing fees,Competitor fees comparison; boundary rule 1 blocks competitor research for this campaign.
+3,GS-017,credit card processing fee calculator,monitor,calculator,commercial,monitor,fee calculator,Commercial pricing tool intent; boundary rule 2 makes pricing comparisons monitor.
+3,GS-021,ach merchant account,monitor,ach,transactional,block,ach merchant account,Wrong product type (ACH); boundary rule 3 blocks unserved payment method searches.
+3,GS-028,clover pos reviews,block,clover,informational,block,clover pos reviews,Competitor review intent; boundary rule 1 blocks competitor research without switching.
+3,GS-032,cost of credit card processing,monitor,cost,commercial,monitor,cost of credit card processing,Commercial cost research; boundary rule 2 treats pricing questions as monitor.
+3,GS-001,credit card processing for small business,target,small business,transactional,target,credit card processing for small business,Transactional setup intent for served segment; boundary rule 4 does not apply.
+3,GS-005,retail merchant account,target,retail,transactional,target,retail merchant account,Transactional merchant account for a served segment; boundary rule 4 does not apply.
+3,GS-008,how to get a merchant account,target,get a merchant account,transactional,target,how to get a merchant account,Transactional setup intent; boundary rule 2 targets setup questions for merchant accounts.
+3,GS-010,best card reader for small business,target,card reader for small business,transactional,target,best card reader for small business,Transactional buying intent for terminals; served segment and product fit.
+3,GS-016,cheap credit card processing,target,cheap,commercial,block,cheap credit card processing,Price-led intent likely seeking free/low-cost processing; boundary rule 3 blocks free/cheap.
+3,GS-019,mobile credit card processing,target,mobile,transactional,target,mobile credit card processing,Transactional setup for mobile terminals; served segment and product fit.
+3,GS-022,credit card processing springfield,target,springfield,transactional,monitor,credit card processing springfield,Local intent without clear merchant type; monitor until segment/product intent is clearer.
+3,GS-024,online payment processing for small business,target,online,transactional,target,online payment processing for small business,Transactional gateway setup intent for served ecommerce/small businesses.
+3,GS-027,merchant account setup,target,setup,transactional,target,merchant account setup,Transactional setup intent for merchant accounts; product fit and served segment.
+3,GS-030,credit card processing machines for small business,target,processing machines,transactional,target,credit card processing machines,Transactional hardware intent for terminals; served segment and product fit.
+3,GS-034,small business merchant account,target,small business,transactional,target,small business merchant account,Transactional merchant account intent for served small businesses.
+3,GS-037,credit card processing hardware for sale,target,hardware,transactional,target,credit card processing hardware for sale,Transactional terminal hardware purchase intent; product fit and served segment.
+3,GS-039,low cost credit card processing,target,low cost,commercial,block,low cost credit card processing,Low-cost price intent risks free/discount-only expectations; boundary rule 3 blocks.
