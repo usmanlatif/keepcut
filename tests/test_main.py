@@ -9,6 +9,8 @@ from pathlib import Path
 from unittest import mock
 
 import pandas as pd
+import streamlit as st
+from streamlit.elements.progress import ProgressMixin
 from streamlit.testing.v1 import AppTest
 
 APP = Path(__file__).resolve().parents[1] / "app"
@@ -24,6 +26,8 @@ TAG = re.compile(r'<term id="([^"]+)">(.*?)</term>')
 REAL_TRIAGE_REPORT = core.triage.triage_report
 REAL_REVIEW = core.reviewer.review
 REAL_WRITE_SUMMARY = core.summary.write_summary
+REAL_ST_PROGRESS = st.progress
+PROFILE = "# Zorbix Widgets (invented)\n\n- What it sells: invented widgets."
 
 TWO_CAMPAIGNS = (
     "Search term,Campaign,Ad group,Clicks,Impr.,Cost,Conversions\n"
@@ -91,6 +95,7 @@ class Screen(unittest.TestCase):
             patcher.start()
             self.addCleanup(patcher.stop)
         self.at = AppTest.from_file(str(APP / "main.py"), default_timeout=10).run()
+        self.at.text_area(key="profile").input(PROFILE).run()
         self.at.text_area(key="paste").input(TWO_CAMPAIGNS).run()
 
     def pick(self, campaign):
@@ -175,7 +180,7 @@ class Screen(unittest.TestCase):
         self.review()
         self.assertFalse(self.notice())
 
-        profile = next(t for t in self.at.text_area if t.label == "Business profile")
+        profile = self.at.text_area(key="profile")
         profile.input(profile.value + "\n- Invented extra line.").run()
         self.assertTrue(self.notice())
         self.assertEqual(self.counts(), "target: 0  ·  block: 0  ·  monitor: 2  ·  error: 0")
@@ -188,6 +193,127 @@ class Screen(unittest.TestCase):
         self.assertTrue(self.notice())
         self.review()
         self.assertFalse(self.notice())
+
+
+def button(at, label):
+    return next((b for b in at.button if b.label == label), None)
+
+
+def steps(at):
+    """The two setup steps' expanders, by key: (label, open)."""
+    return {e.proto.id.rsplit("-", 2)[-2] + "-" + e.proto.id.rsplit("-", 1)[-1]: (e.label, e.proto.expanded)
+            for e in at.expander if e.proto.id.endswith(("-step-1", "-step-2"))}
+
+
+class EmptyStartAndDemo(unittest.TestCase):
+    """The screen before anything is entered, and the one-click demo. No model is reached."""
+
+    def setUp(self):
+        self.reviewed = []
+
+        def fake_triage_report(rows, context, progress=None):
+            self.reviewed.append(rows)
+            return REAL_TRIAGE_REPORT(rows, context, call=block_three_words, progress=progress)
+
+        def fake_review(rows, context, progress=None):
+            return REAL_REVIEW(rows, context, call=challenge_careers, progress=progress)
+
+        self.progress_texts = []
+        real_progress = ProgressMixin.progress
+
+        def record_progress(dg, value, text=None, **options):
+            self.progress_texts.append(text)
+            return real_progress(dg, value, text=text, **options)
+
+        def record_new_bar(value, text=None, **options):
+            self.progress_texts.append(text)
+            return REAL_ST_PROGRESS(value, text=text, **options)
+
+        for target, fake in (("core.triage.triage_report", fake_triage_report), ("core.reviewer.review", fake_review),
+                             ("streamlit.elements.progress.ProgressMixin.progress", record_progress),
+                             ("streamlit.progress", record_new_bar)):
+            patcher = mock.patch(target, fake)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        self.at = AppTest.from_file(str(APP / "main.py"), default_timeout=10).run()
+
+    def review_disabled(self):
+        return button(self.at, "Review terms").disabled
+
+    def model_sees(self):
+        return [c.value for c in self.at.code]
+
+    def test_first_load_is_empty(self):
+        profile = self.at.text_area(key="profile")
+        self.assertEqual(profile.value, "")
+        self.assertTrue(profile.placeholder.startswith("What you sell"))
+        self.assertIsNone(self.at.session_state["raw"])
+        self.assertEqual(len(self.at.selectbox), 0)
+        self.assertEqual(self.model_sees(), [])
+        self.assertTrue(any(c.value == "Nothing yet. Write a business profile first." for c in self.at.caption))
+        self.assertTrue(self.review_disabled())
+        self.assertEqual(len(self.at.text_input), 0)  # no Campaign field in step 1
+        self.assertIsNone(button(self.at, "Load demo report"))
+        self.assertEqual({k: v[1] for k, v in steps(self.at).items()}, {"step-1": True, "step-2": True})
+
+    def test_review_needs_a_profile_and_a_chosen_campaign(self):
+        self.at.text_area(key="paste").input(TWO_CAMPAIGNS).run()
+        self.at.selectbox(key="campaign_pick").select("Camp B").run()
+        self.assertTrue(self.review_disabled())  # campaign, no profile
+        self.assertEqual(self.model_sees(), [])
+
+        self.at.text_area(key="profile").input(PROFILE).run()
+        self.assertFalse(self.review_disabled())
+        [context] = self.model_sees()
+        self.assertIn("Every decision is for this campaign only: Camp B", context)
+
+        self.at.text_area(key="paste").input(THREE_BLOCKS.replace("Camp C", "Camp D") + TWO_CAMPAIGNS[60:]).run()
+        self.assertIsNone(self.at.selectbox(key="campaign_pick").value)
+        self.assertTrue(self.review_disabled())  # profile, no campaign chosen
+
+    def test_demo_button_fills_profile_loads_small_report_and_picks_campaign(self):
+        button(self.at, "Load demo: Plover Payments").click().run()
+        self.assertEqual(self.at.text_area(key="profile").value,
+                         (APP / "data" / "business_profile.md").read_text(encoding="utf-8"))
+        self.assertEqual(self.at.session_state["raw"],
+                         (APP / "data" / "demo" / "search_terms_demo_small.csv").read_bytes())
+        self.assertEqual(self.at.selectbox(key="campaign_pick").value, "Plover Generic Search")
+        self.assertEqual(self.reviewed, [])  # the review does not start
+        self.assertFalse(self.review_disabled())
+        [context] = self.model_sees()
+        self.assertIn("Every decision is for this campaign only: Plover Generic Search", context)
+
+    def test_complete_steps_collapse_with_a_summary_and_reopen_on_click(self):
+        button(self.at, "Load demo: Plover Payments").click().run()
+        self.assertEqual(steps(self.at), {
+            "step-1": ("**1. Account** Plover Payments profile", False),
+            "step-2": ("**2. Report** 80 terms, Plover Generic Search, Aug to Sep 2026", False),
+        })
+        # A click on the label opens the step (what the browser sends), and it stays open on the next run
+        self.at.session_state["step-1"] = True
+        self.at.session_state["open"]["step-1"] = True
+        self.at.run()
+        self.assertTrue(steps(self.at)["step-1"][1])
+        self.assertFalse(steps(self.at)["step-2"][1])
+
+        # Emptying the profile makes step 1 incomplete again: it stays open and loses its summary
+        self.at.text_area(key="profile").input("").run()
+        self.assertEqual(steps(self.at)["step-1"], ("**1. Account**", True))
+        self.assertTrue(self.review_disabled())
+
+    def test_progress_text_counts_calls_and_terms(self):
+        text = "Search term,Campaign,Ad group,Clicks,Impr.,Cost,Conversions\n" + "".join(
+            f"zorbix{i} {'login' if i < 3 else 'reader'},Camp E,Group 1,1,10,1.00,0\n" for i in range(25))
+        self.at.text_area(key="profile").input(PROFILE).run()
+        self.at.text_area(key="paste").input(text).run()
+        button(self.at, "Review terms").click().run()
+        self.assertEqual(self.progress_texts, [
+            "Triage: 0 of 2 calls done, 25 terms",
+            "Triage: 1 of 2 calls done, 25 terms",
+            "Triage: 2 of 2 calls done, 25 terms",
+            "Reviewer: 0 of 1 calls done, 3 blocks to check",
+            "Reviewer: 1 of 1 calls done, 3 blocks to check",
+        ])
 
 
 class DecisionEdits(unittest.TestCase):
@@ -283,6 +409,7 @@ class DashboardAndApprove(unittest.TestCase):
             patcher.start()
             self.addCleanup(patcher.stop)
         self.at = AppTest.from_file(str(APP / "main.py"), default_timeout=10).run()
+        self.at.text_area(key="profile").input(PROFILE).run()
         self.at.text_area(key="paste").input(TWO_MONTHS).run()
         next(b for b in self.at.button if b.label == "Review terms").click().run()
 

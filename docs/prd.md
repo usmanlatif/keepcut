@@ -48,8 +48,8 @@ One screen, worked top to bottom. Nothing leaves the table until the manager app
 
 | Step | The manager | The app |
 | --- | --- | --- |
-| 1. Account | Pastes the business profile and names the campaign (Plover is prefilled) | Shows exactly what the model will receive, in a "What the model sees" panel |
-| 2. Report | Uploads the Google Ads search terms export, or pastes it; or clicks "Load demo report" | Checks the required columns, then shows row count and date range, or names the missing column |
+| 1. Account | Pastes the business profile, or clicks "Load demo: Plover Payments" above step 1, which fills the profile and loads the demo report; nothing is prefilled | Shows exactly what the model will receive, in a "What the model sees" panel; the step collapses to one summary line once complete |
+| 2. Report | Uploads the Google Ads search terms export, or pastes it, then picks the campaign; the campaign name goes into what the model sees | Checks the required columns, then shows row count and date range, or names the missing column; the step collapses to one summary line once complete |
 | 3. Review terms | Clicks "Review terms" | Triage labels every term; the reviewer agent challenges each `block`; progress shown |
 | 4. Check | Filters by decision or by "challenged", reads trigger and reason, changes any decision | Table: term, ad group, intent stage, decision, trigger, reason, reviewer verdict, clicks, cost, conversions |
 | 5. Dashboard | Reads it | Tiles: total spend, spend on blocked terms, new keywords found. Charts: spend by decision, by intent stage, by ad group; month over month when the report spans two months. Updates as decisions change |
@@ -168,7 +168,8 @@ The same four stages for any account, so nothing is configured per business. The
 | --- | --- |
 | `app/data/business_profile.md` | Plover profile |
 | `app/data/labels.md` | Label rules (spec v3) and the intent-stage definitions |
-| `app/data/demo/search_terms_demo_synthetic.csv` | Demo report |
+| `app/data/demo/search_terms_demo_synthetic.csv` | Full demo report (243 rows, 154 terms); read by the summary figure check and the tests |
+| `app/data/demo/search_terms_demo_small.csv` | Demo report the app loads (80 terms, one round of model calls), cut from the full one by `scripts/make_small_demo.py` |
 | `evaluation/golden_set.csv` | Golden set v1 |
 
 **No client data in the repo.** The export header above is a format, not data; the terms are public Ahrefs data; the metrics are synthetic.
@@ -209,6 +210,8 @@ One change at a time, same 40 terms, compare (S2 s33). Each run is saved as a da
 1. **The prompt ladder** (S2 s14 to 15): v0 bare task, v1 the label set, v2 delimiters, v3 examples, v4 JSON contract with the evidence field, v5 the escape hatch. One score per version, charted
 2. **Batch size:** 1 term per call against 20, for score, tokens and time
 3. **Reviewer on or off:** kept only if acting on its challenges would raise block precision without losing block recall; otherwise it is the documented abandoned attempt ("when the critique is worthless", S4 s38)
+
+**Cut 2026-10-20 to one experiment:** triage v6, one change from the failure taxonomy's hedging families, scored 3 runs against the current prompt (v5); kept if its mean `monitor` share falls below v5's lowest run while mean block precision stays at or above v5's lowest run, otherwise reverted and documented as the abandoned attempt. Items 1 to 3, a two-judge summary judge and a summary prompt fix move to next steps (section 10).
 
 ### Also reported
 

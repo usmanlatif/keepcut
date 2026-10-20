@@ -31,7 +31,7 @@ Google Ads search terms today. Other ad platforms later.
 
 ## Try it
 
-Click **Load demo report** in step 2. The demo report is synthetic, for Plover Payments, a fictional company.
+Click **Load demo: Plover Payments** above step 1. It fills the business profile and loads a synthetic 80-term report for Plover Payments, a fictional company. Then click **Review terms**.
 
 ## Run it locally
 

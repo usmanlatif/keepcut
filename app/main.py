@@ -1,5 +1,6 @@
 """The one screen (PRD section 2, steps 1 to 6): account, report, review terms, check, dashboard, approve and
 summary."""
+import re
 from pathlib import Path
 
 import streamlit as st
@@ -7,20 +8,21 @@ import streamlit as st
 from core import dashboard, exports, summary
 from core.context import build_context
 from core.edits import apply_decision_edits
-from core.report import ReportError, campaign_rows, campaigns, parse_report
+from core.report import ReportError, campaign_rows, campaigns, parse_report, term_key
 from core.reviewer import review as review_blocks
 from core.table import build_table
-from core.triage import triage_report
+from core.triage import BATCH_SIZE, triage_report
 
 APP = Path(__file__).resolve().parent
 PROFILE = APP / "data" / "business_profile.md"
-DEMO = APP / "data" / "demo" / "search_terms_demo_synthetic.csv"
-DEFAULT_CAMPAIGN = "Plover Generic Search"
+DEMO = APP / "data" / "demo" / "search_terms_demo_small.csv"
 DECISIONS = ["target", "block", "monitor", "error"]
+STEPS = ("step-1", "step-2")  # the two setup steps, which collapse once complete
 
 st.set_page_config(page_title="KeepCut", layout="wide")
 # The only custom CSS: cap the wide layout at 1180px, centered, raise captions to 0.8 opacity for a projector,
-# fill the six step boxes white, bold field labels, and give buttons the brand green.
+# fill the six step boxes white, bold field labels, give buttons the brand green, and size the labels of the two
+# collapsible steps like the other step headings.
 st.html("""<style>
 [data-testid="stMainBlockContainer"] { max-width: 1180px; margin: 0 auto; }
 [data-testid="stCaptionContainer"] { opacity: 0.8; }
@@ -29,13 +31,17 @@ st.html("""<style>
 button[data-testid="stBaseButton-secondary"]:not(:disabled) { color: #1F4D3F; border-color: #1F4D3F; }
 button[data-testid="stBaseButton-secondary"]:not(:disabled):hover { background: #1F4D3F; color: #FFFFFF; }
 button[data-testid="stBaseButton-primary"]:not(:disabled):hover { background: #163A2F; border-color: #163A2F; }
+[class*="st-key-step-"] > [data-testid="stExpander"] > details > summary { background: #FFFFFF; }
+[class*="st-key-step-"] > [data-testid="stExpander"] > details > summary strong { font-size: 2.25rem; font-weight: 600; margin-right: 0.75rem; }
 </style>""")
 state = st.session_state
 state.setdefault("raw", None)
 state.setdefault("source", None)
 state.setdefault("reviews", {})  # campaign -> {"table", "run", "context"}: each campaign keeps its own review and edits
 state.setdefault("editor_version", 0)
-state.setdefault("campaign_name", DEFAULT_CAMPAIGN)
+state.setdefault("profile", "")
+state.setdefault("open", dict.fromkeys(STEPS, True))  # whether each setup step is open, kept across label changes
+state.setdefault("complete", dict.fromkeys(STEPS, False))
 
 
 def set_report(raw, source):
@@ -56,7 +62,37 @@ def on_paste():
 
 
 def on_demo():
+    """Fills the profile and loads the small demo report; its one campaign is picked when the report is parsed."""
+    state.profile = PROFILE.read_text(encoding="utf-8")
     set_report(DEMO.read_bytes(), "demo report")
+
+
+def remember_open(step):
+    state.open[step] = state[step]
+
+
+def step_box(step, heading, summary):
+    """A setup step as an expander. Its label changes as the summary does, which makes Streamlit treat it as a new
+    widget, so the open state lives in state.open and is written to the widget's key before every draw."""
+    state[step] = state.open[step]
+    label = f"**{heading}** {summary}" if summary else f"**{heading}**"
+    return st.expander(label, key=step, on_change=remember_open, args=(step,))
+
+
+def profile_name(profile):
+    """The profile's first line, without heading marks or a trailing note in brackets: "Plover Payments"."""
+    first = next(line for line in profile.splitlines() if line.strip())
+    return re.sub(r"\s*\(.*\)\s*$", "", first.strip().lstrip("#").strip())[:60]
+
+
+def period(rows, date_range):
+    """The months the rows cover, short: "Aug to Sep 2026"; else the report's date range, if it has one."""
+    months = list(dict.fromkeys(r["Month"] for r in rows if r.get("Month")))
+    parts = [m.split() for m in (months[0], months[-1])] if months else []
+    if len(parts) == 2 and all(len(p) == 2 for p in parts) and parts[0][1] == parts[1][1]:
+        first, last = parts[0][0][:3], parts[1][0][:3]
+        return f"{first} {parts[0][1]}" if first == last else f"{first} to {last} {parts[0][1]}"
+    return date_range
 
 
 def editor_key(campaign):
@@ -72,8 +108,9 @@ def apply_edits():
     state.editor_version += 1
 
 
-# The report is parsed before step 1 is drawn, because the campaign picked in step 2 sets the campaign name there.
-report, report_error, report_campaigns, pick = None, None, [], None
+# The report is parsed before step 1 is drawn, because the campaign picked in step 2 goes into the context there,
+# and both setup steps need to know whether they are complete before they are drawn.
+report, report_error, report_campaigns, pick, rows = None, None, [], None, []
 if state.raw is not None:
     try:
         report = parse_report(state.raw)
@@ -84,32 +121,42 @@ if report:
     pick = state.get("campaign_pick")
     if pick not in report_campaigns:
         pick = report_campaigns[0] if len(report_campaigns) == 1 else None
-    state.campaign_name = pick or ""
+    if pick:
+        rows = campaign_rows(report.rows, pick)
+
+profile = state.profile
+summaries = {"step-1": f"{profile_name(profile)} profile" if profile.strip() else None,
+             "step-2": f"{len({term_key(r['Search term']) for r in rows})} terms, "
+                       + ", ".join(filter(None, [pick, period(rows, report.date_range)])) if rows else None}
+for step in STEPS:
+    # A step closes when it becomes complete and opens again if it stops being complete.
+    complete = summaries[step] is not None
+    if complete != state.complete[step]:
+        state.complete[step], state.open[step] = complete, not complete
 
 st.title("KeepCut")
 st.caption("Keep what works. Cut what doesn't.")
+st.button("Load demo: Plover Payments", on_click=on_demo)
 
 # Step 1: account
-with st.container(border=True, key="step-1"):
-    st.header("1. Account")
-    profile = st.text_area("Business profile", PROFILE.read_text(encoding="utf-8"), height=260)
-    campaign = st.text_input("Campaign", key="campaign_name", disabled=report is not None,
-                             placeholder="Choose the campaign in step 2",
-                             help="Set by the campaign chosen in step 2 once a report is loaded.")
-    context = build_context(profile, campaign)
+with step_box("step-1", "1. Account", summaries["step-1"]):
+    st.text_area("Business profile", key="profile", height=260,
+                 placeholder="What you sell, who you serve and who you don't, what you don't sell, pricing, "
+                             "competitors, and the campaign's goal.")
+    context = build_context(profile, pick or "")
     with st.expander("What the model sees"):
-        st.code(context, language=None, wrap_lines=True)
+        if profile.strip():
+            st.code(context, language=None, wrap_lines=True)
+        else:
+            st.caption("Nothing yet. Write a business profile first.")
 
 # Step 2: report
-with st.container(border=True, key="step-2"):
-    st.header("2. Report")
+with step_box("step-2", "2. Report", summaries["step-2"]):
     upload_col, paste_col = st.columns(2)
     upload_col.file_uploader("Upload a Google Ads search terms export", type=["csv", "tsv", "txt"],
                              key="upload", on_change=on_upload)
-    upload_col.button("Load demo report", on_click=on_demo)
     paste_col.text_area("Or paste the export", key="paste", height=120, on_change=on_paste)
 
-    rows = []
     if report_error:
         st.error(report_error)
     elif report and report.row_count == 0:
@@ -120,7 +167,6 @@ with st.container(border=True, key="step-2"):
                      index=report_campaigns.index(pick) if pick else None,
                      placeholder="Choose a campaign", key="campaign_pick")
         if pick:
-            rows = campaign_rows(report.rows, pick)
             rows_col, dates_col, cost_col = st.columns(3)
             rows_col.metric("Rows", len(rows))
             dates_col.metric("Date range", report.date_range or "Not in the file")
@@ -129,16 +175,20 @@ with st.container(border=True, key="step-2"):
 # Step 3: review terms
 with st.container(border=True, key="step-3"):
     st.header("3. Review terms")
-    if st.button("Review terms", type="primary", disabled=not rows):
-        bar = st.progress(0.0, text="Triage...")
+    if st.button("Review terms", type="primary", disabled=not (rows and profile.strip())):
+        terms = len({term_key(r["Search term"]) for r in rows})
+        bar = st.progress(0.0, text=f"Triage: 0 of {-(-terms // BATCH_SIZE)} calls done, {terms} terms")
         result = triage_report(
             rows, context,
-            progress=lambda done, total: bar.progress(done / total, text=f"Triage: batch {done} of {total}"),
+            progress=lambda done, total: bar.progress(done / total,
+                                                      text=f"Triage: {done} of {total} calls done, {terms} terms"),
         )
-        bar.progress(0.0, text="Reviewer...")
+        blocks = len({r["id"] for r in result.rows if r["label"] == "block"})
+        bar.progress(0.0, text=f"Reviewer: 0 of {-(-blocks // BATCH_SIZE)} calls done, {blocks} blocks to check")
         checked = review_blocks(
             result.rows, context,
-            progress=lambda done, total: bar.progress(done / total, text=f"Reviewer: batch {done} of {total}"),
+            progress=lambda done, total: bar.progress(
+                done / total, text=f"Reviewer: {done} of {total} calls done, {blocks} blocks to check"),
         )
         bar.empty()
         state.reviews[pick] = {"table": build_table(rows, result.rows, report.has_month, checked.results), "run": result,
