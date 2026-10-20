@@ -3,6 +3,7 @@ summary."""
 import re
 from pathlib import Path
 
+import altair as alt
 import streamlit as st
 
 from core import dashboard, exports, summary
@@ -19,6 +20,8 @@ DEMO = APP / "data" / "demo" / "search_terms_demo_small.csv"
 DECISIONS = ["target", "block", "monitor", "error"]
 # One color per decision, for the step 4 cards and the charts
 DECISION_COLORS = {"target": "#1F4D3F", "block": "#9B2C2C", "monitor": "#7A4F00", "error": "#4A5563"}
+BAR_COLOR = "#6B5E4B"  # charts that do not split by decision
+ROW_SHADES = ("#FFFFFF", "#F5F1EA")  # alternating table rows
 STEPS = ("step-1", "step-2")  # the two setup steps, which collapse once complete
 
 st.set_page_config(page_title="KeepCut", layout="wide")
@@ -97,6 +100,37 @@ def proper(values):
     """Decisions, intent stages and verdicts as the screen shows them ("target" as "Target"); the table keeps them
     lowercase."""
     return values.str.capitalize()
+
+
+def decision_scale(labels):
+    """The decision colors for the decisions present, in the order target, block, monitor, error."""
+    present = [d for d in DECISIONS if d.capitalize() in set(labels)]
+    return alt.Scale(domain=[d.capitalize() for d in present], range=[DECISION_COLORS[d] for d in present])
+
+
+COST_AXIS = alt.Axis(format=",.0f", title="Cost")
+COST_TIP = alt.Tooltip("Cost:Q", format=",.2f")
+WRAP = alt.Axis(labelAngle=0, labelExpr="split(datum.label, ' ')", title=None)  # long labels wrap at spaces
+
+
+def spend_chart(frame, column, title):
+    """One bar per value of a column, in the frame's order; colored by decision when the column is Decision."""
+    color = (alt.Color("Decision:N", scale=decision_scale(frame["Decision"]), legend=None)
+             if column == "Decision" else alt.value(BAR_COLOR))
+    return alt.Chart(frame, title=title, height=300).mark_bar().encode(
+        x=alt.X(f"{column}:N", sort=list(frame[column]), axis=WRAP), y=alt.Y("Cost:Q", axis=COST_AXIS),
+        color=color, tooltip=[f"{column}:N", COST_TIP])
+
+
+def stacked_chart(grid, title):
+    """A crosstab with one column per decision as bars per row value, left to right, stacked by decision."""
+    rows = grid.index.name
+    long = grid.reset_index().melt(id_vars=rows, var_name="Decision", value_name="Cost")
+    long["Stack"] = long["Decision"].map({d.capitalize(): i for i, d in enumerate(DECISIONS)})
+    return alt.Chart(long, title=title, height=300).mark_bar().encode(
+        x=alt.X(f"{rows}:N", sort=list(grid.index), axis=WRAP), y=alt.Y("Cost:Q", axis=COST_AXIS, stack=True),
+        color=alt.Color("Decision:N", scale=decision_scale(long["Decision"]), legend=alt.Legend(orient="bottom")),
+        order=alt.Order("Stack:Q"), tooltip=[f"{rows}:N", "Decision:N", COST_TIP])
 
 
 def remember_open(step):
@@ -254,7 +288,10 @@ with st.container(border=True, key="step-4"):
             st.warning("The business profile changed since this campaign's review. These decisions were made under "
                        "the old context: click \"Review terms\" to review the terms again.")
         table = review["table"]
-        counts = table["Decision"].value_counts()
+        # Distinct terms per decision (term_key, as the step 2 summary counts them), so the cards total the terms and
+        # an edit moves each card by 1. A term's rows share one decision (triage and edits both go by term_key);
+        # were they ever to differ, the term counts under its first row's decision.
+        counts = table[~table["Term"].map(term_key).duplicated()]["Decision"].value_counts()
         for column, d in zip(st.columns(len(DECISIONS)), DECISIONS):
             column.container(key=f"decision-{d}").metric(d.capitalize(), int(counts.get(d, 0)), border=True)
         filter_col, challenged_col = st.columns([4, 1], vertical_alignment="bottom")
@@ -265,12 +302,16 @@ with st.container(border=True, key="step-4"):
         if challenged:
             view = view[view["Reviewer"] == "challenge"]
         state.view_index, state.view_campaign = list(view.index), pick
+        position = {index: i for i, index in enumerate(view.index)}
         # A display copy: proper case on screen, lowercase in the table (apply_edits lowercases an edited decision)
         shown_view = view.assign(**{c: proper(view[c]) for c in ("Decision", "Intent stage", "Reviewer")},
                                  **{"Reviewer note": view["Reviewer note"].str[:1].str.upper()
                                     + view["Reviewer note"].str[1:]})
         st.data_editor(
-            shown_view,
+            # Alternating row shades; Streamlit applies them only to the columns that cannot be edited
+            shown_view.style.apply(
+                lambda row: [f"background-color: {ROW_SHADES[position[row.name] % 2]}"] * len(row), axis=1,
+            ).format("{:g}", subset=list(shown_view.select_dtypes("float").columns), na_rep=""),  # 2, not 2.000000
             key=editor_key(pick),
             on_change=apply_edits,
             hide_index=True,
@@ -279,6 +320,8 @@ with st.container(border=True, key="step-4"):
             column_config={
                 "Decision": st.column_config.SelectboxColumn(
                     "Decision", options=[d.capitalize() for d in DECISIONS], required=True),
+                "Intent stage": st.column_config.TextColumn("Intent stage", alignment="center"),
+                "Reviewer": st.column_config.TextColumn("Reviewer", alignment="center"),
                 "Reason": st.column_config.TextColumn("Reason", width="large"),
                 "Reviewer note": st.column_config.TextColumn("Reviewer note", width="large"),
                 "Cost": st.column_config.NumberColumn("Cost", format="%.2f"),
@@ -301,29 +344,33 @@ with st.container(border=True, key="step-5"):
         # Display copies of the chart frames: decisions and intent stages in proper case
         by_decision = dashboard.spend_by_decision(table)
         by_intent = dashboard.spend_by_intent(table)
-        grid = dashboard.intent_by_decision(table)
-        decision_col, intent_col = st.columns(2)
-        with decision_col.container(border=True, key="chart-decision"):
-            st.subheader("Spend by decision")
-            st.bar_chart(by_decision.assign(Decision=proper(by_decision["Decision"])), x="Decision", y="Cost",
-                         sort=False)
-        with intent_col.container(border=True, key="chart-intent"):
-            st.subheader("Spend by intent stage")
-            st.bar_chart(by_intent.assign(**{"Intent stage": proper(by_intent["Intent stage"])}), x="Intent stage",
-                         y="Cost", sort=False)
-        group_col, grid_col = st.columns(2)
-        with group_col.container(border=True, key="chart-ad-group"):
-            st.subheader("Spend by ad group")
-            st.bar_chart(dashboard.spend_by_ad_group(table), x="Ad group", y="Cost")
-        with grid_col.container(border=True, key="chart-intent-decision"):
-            st.subheader("Intent stage against decision")
-            st.bar_chart(grid.rename(index=str.capitalize, columns=str.capitalize), sort=False, y_label="Cost")
+        by_group = dashboard.spend_by_ad_group(table).sort_values("Cost", ascending=False)
+        grid = dashboard.intent_by_decision(table).rename(index=str.capitalize, columns=str.capitalize)
+        charts = [
+            ("chart-decision", "Spend by decision",
+             spend_chart(by_decision.assign(Decision=proper(by_decision["Decision"])), "Decision",
+                         "Spend by decision")),
+            ("chart-intent", "Spend by intent stage",
+             spend_chart(by_intent.assign(**{"Intent stage": proper(by_intent["Intent stage"])}), "Intent stage",
+                         "Spend by intent stage")),
+            ("chart-ad-group", "Spend by ad group",
+             alt.Chart(by_group, title="Spend by ad group", height=300).mark_bar(color=BAR_COLOR).encode(
+                 x=alt.X("Cost:Q", axis=COST_AXIS),
+                 y=alt.Y("Ad group:N", sort="-x", axis=alt.Axis(labelLimit=140, title=None)),  # cut labels: tooltip
+                 tooltip=["Ad group:N", COST_TIP])),
+            ("chart-intent-decision", "Intent stage against decision",
+             stacked_chart(grid, "Intent stage against decision")),
+        ]
         months = dashboard.month_by_decision(table)
         if months is not None:
-            with st.container(border=True, key="chart-month"):
-                st.subheader("Month over month spend by decision")
-                st.bar_chart(months.rename(index=str.capitalize, columns=str.capitalize), sort=False,
-                             y_label="Cost")
+            charts.append(("chart-month", "Month over month spend by decision",
+                           stacked_chart(months.rename(index=str.capitalize, columns=str.capitalize),
+                                         "Month over month spend by decision")))
+        for start in range(0, len(charts), 2):
+            pair = charts[start:start + 2]
+            for column, (key, title, chart) in zip(st.columns(2) if len(pair) == 2 else [st], pair):
+                with column.container(border=True, key=key):
+                    st.altair_chart(chart, width="stretch", alt=title)
 
 # Step 6: approve
 with st.container(border=True, key="step-6"):

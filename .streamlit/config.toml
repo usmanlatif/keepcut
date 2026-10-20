@@ -9,6 +9,8 @@ baseRadius = "small"
 font = "Inter:https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap, sans-serif"
 baseFontSize = 17
 showWidgetBorder = true
+dataframeHeaderBackgroundColor = "#1F4D3F"
+dataframeHeaderTextColor = "#FFFFFF"
 
 [client]
 toolbarMode = "viewer"

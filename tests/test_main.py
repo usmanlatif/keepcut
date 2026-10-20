@@ -472,6 +472,9 @@ class DashboardAndApprove(unittest.TestCase):
     def downloads(self):
         return [d.proto.label for d in self.at.get("download_button")]
 
+    def chart_titles(self):
+        return [json.loads(c.proto.spec).get("title") for c in self.at.get("vega_lite_chart")]
+
     def approve(self):
         next(b for b in self.at.button if b.label == "Approve and build outputs").click().run()
 
@@ -480,7 +483,7 @@ class DashboardAndApprove(unittest.TestCase):
         self.assertEqual(self.metric("Total spend"), "9.75")
         self.assertEqual(self.metric("Spend on blocked terms"), "0.00")
         self.assertEqual(self.metric("New keywords found"), "0")
-        self.assertTrue(any(s.value == "Month over month spend by decision" for s in self.at.subheader))
+        self.assertIn("Month over month spend by decision", self.chart_titles())
 
         table = self.table()
         table.loc[table["Term"] == "zorbix card reader", "Decision"] = "block"
@@ -489,12 +492,27 @@ class DashboardAndApprove(unittest.TestCase):
         self.assertEqual(self.metric("Spend on blocked terms"), "5.50")
         self.assertEqual(self.metric("New keywords found"), "1")
 
+    def test_decision_cards_count_terms_and_an_edit_moves_each_card_by_one(self):
+        cards = ("Target", "Block", "Monitor", "Error")
+        self.assertEqual([self.metric(c) for c in cards], ["0", "0", "2", "0"])  # 3 rows, 2 terms
+        editor = next(d for d in self.at.dataframe if "editor_Camp M_" in d.proto.id)
+        self.assertEqual(list(editor.value["Term"]), ["zorbix card reader", "zorbix card reader", "quillon pos system"])
+        # What the browser sends when the reviewer picks "Block" on the August row of the two-month term
+        edit = WidgetState(id=editor.proto.id, string_value=json.dumps(
+            {"edited_rows": {"0": {"Decision": "Block"}}, "added_rows": [], "deleted_rows": []}))
+        states = self.at._tree.get_widget_states()
+        states.widgets.append(edit)
+        self.at._run(states)
+        self.assertEqual(list(self.table()["Decision"]), ["block", "block", "monitor"])  # both rows of the term
+        self.assertEqual([self.metric(c) for c in cards], ["0", "1", "1", "0"])
+
     def test_no_month_column_means_no_month_chart(self):
         self.at.text_area(key="paste").input(TWO_CAMPAIGNS).run()
         self.at.selectbox(key="campaign_pick").select("Camp B").run()
         next(b for b in self.at.button if b.label == "Review terms").click().run()
         self.assertNotIn("Month", self.at.session_state["reviews"]["Camp B"]["table"].columns)
-        self.assertFalse(any(s.value == "Month over month spend by decision" for s in self.at.subheader))
+        self.assertEqual(len(self.chart_titles()), 4)
+        self.assertNotIn("Month over month spend by decision", self.chart_titles())
 
     def test_a_conflict_is_listed_under_the_approve_button(self):
         def listed():

@@ -12,3 +12,8 @@ venv/
 # os / editor
 .DS_Store
 .idea/
+
+# local tools and temp files
+.playwright-mcp/
+.agents/skills/developing-with-streamlit
+*.log
