@@ -13,7 +13,7 @@ For each term, in this order:
 4. Choose the label. When two labels are both defensible, apply the tie-breakers.
 5. Pick the trigger: the shortest exact words from the term that decided the label. Use the whole term only when every word in it decides the label.
 
-monitor is a narrow escape hatch. Use it only when the term is unreadable (too short to read, garbled or in another language), when a rule in the account context assigns monitor, or when the term genuinely fits no rule, and the reason then says which case applied. A term that matches a block rule is block, even when you can imagine a buyer behind it. A clear buying intent for a product Plover sells to a served segment is target, even when the label feels strong. Never invent a label outside target, block and monitor.
+monitor is the escape hatch. If the term is ambiguous, too short to read, in another language, or does not fit any rule cleanly, the label is monitor and the reason says what is unclear. Never invent a label outside target, block and monitor.
 
 # Signal examples
 
