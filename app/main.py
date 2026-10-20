@@ -18,7 +18,18 @@ DEMO = APP / "data" / "demo" / "search_terms_demo_synthetic.csv"
 DEFAULT_CAMPAIGN = "Plover Generic Search"
 DECISIONS = ["target", "block", "monitor", "error"]
 
-st.set_page_config(page_title="Search term triage", layout="wide")
+st.set_page_config(page_title="KeepCut", layout="wide")
+# The only custom CSS: cap the wide layout at 1180px, centered, raise captions to 0.8 opacity for a projector,
+# fill the six step boxes white, bold field labels, and give buttons the brand green.
+st.html("""<style>
+[data-testid="stMainBlockContainer"] { max-width: 1180px; margin: 0 auto; }
+[data-testid="stCaptionContainer"] { opacity: 0.8; }
+[class*="st-key-step-"] { background: #FFFFFF; }
+[data-testid="stWidgetLabel"], [data-testid="stWidgetLabel"] p { font-weight: 600; }
+button[data-testid="stBaseButton-secondary"]:not(:disabled) { color: #1F4D3F; border-color: #1F4D3F; }
+button[data-testid="stBaseButton-secondary"]:not(:disabled):hover { background: #1F4D3F; color: #FFFFFF; }
+button[data-testid="stBaseButton-primary"]:not(:disabled):hover { background: #163A2F; border-color: #163A2F; }
+</style>""")
 state = st.session_state
 state.setdefault("raw", None)
 state.setdefault("source", None)
@@ -75,160 +86,167 @@ if report:
         pick = report_campaigns[0] if len(report_campaigns) == 1 else None
     state.campaign_name = pick or ""
 
-st.title("Search term triage")
+st.title("KeepCut")
+st.caption("Keep what works. Cut what doesn't.")
 
 # Step 1: account
-st.header("1. Account")
-profile = st.text_area("Business profile", PROFILE.read_text(encoding="utf-8"), height=260)
-campaign = st.text_input("Campaign", key="campaign_name", disabled=report is not None,
-                         placeholder="Choose the campaign in step 2",
-                         help="Set by the campaign chosen in step 2 once a report is loaded.")
-context = build_context(profile, campaign)
-with st.expander("What the model sees"):
-    st.code(context, language=None, wrap_lines=True)
+with st.container(border=True, key="step-1"):
+    st.header("1. Account")
+    profile = st.text_area("Business profile", PROFILE.read_text(encoding="utf-8"), height=260)
+    campaign = st.text_input("Campaign", key="campaign_name", disabled=report is not None,
+                             placeholder="Choose the campaign in step 2",
+                             help="Set by the campaign chosen in step 2 once a report is loaded.")
+    context = build_context(profile, campaign)
+    with st.expander("What the model sees"):
+        st.code(context, language=None, wrap_lines=True)
 
 # Step 2: report
-st.header("2. Report")
-upload_col, paste_col = st.columns(2)
-upload_col.file_uploader("Upload a Google Ads search terms export", type=["csv", "tsv", "txt"],
-                         key="upload", on_change=on_upload)
-upload_col.button("Load demo report", on_click=on_demo)
-paste_col.text_area("Or paste the export", key="paste", height=120, on_change=on_paste)
+with st.container(border=True, key="step-2"):
+    st.header("2. Report")
+    upload_col, paste_col = st.columns(2)
+    upload_col.file_uploader("Upload a Google Ads search terms export", type=["csv", "tsv", "txt"],
+                             key="upload", on_change=on_upload)
+    upload_col.button("Load demo report", on_click=on_demo)
+    paste_col.text_area("Or paste the export", key="paste", height=120, on_change=on_paste)
 
-rows = []
-if report_error:
-    st.error(report_error)
-elif report and report.row_count == 0:
-    st.error("No search terms in this report.")
-elif report:
-    st.caption(f"Source: {state.source}. {report.row_count} rows across {len(report_campaigns)} campaign(s).")
-    st.selectbox("Campaign to review", report_campaigns,
-                 index=report_campaigns.index(pick) if pick else None,
-                 placeholder="Choose a campaign", key="campaign_pick")
-    if pick:
-        rows = campaign_rows(report.rows, pick)
-        rows_col, dates_col, cost_col = st.columns(3)
-        rows_col.metric("Rows", len(rows))
-        dates_col.metric("Date range", report.date_range or "Not in the file")
-        cost_col.metric("Cost", f"{sum(r['Cost'] for r in rows):,.2f}")
+    rows = []
+    if report_error:
+        st.error(report_error)
+    elif report and report.row_count == 0:
+        st.error("No search terms in this report.")
+    elif report:
+        st.caption(f"Source: {state.source}. {report.row_count} rows across {len(report_campaigns)} campaign(s).")
+        st.selectbox("Campaign to review", report_campaigns,
+                     index=report_campaigns.index(pick) if pick else None,
+                     placeholder="Choose a campaign", key="campaign_pick")
+        if pick:
+            rows = campaign_rows(report.rows, pick)
+            rows_col, dates_col, cost_col = st.columns(3)
+            rows_col.metric("Rows", len(rows))
+            dates_col.metric("Date range", report.date_range or "Not in the file")
+            cost_col.metric("Cost", f"{sum(r['Cost'] for r in rows):,.2f}")
 
 # Step 3: review terms
-st.header("3. Review terms")
-if st.button("Review terms", type="primary", disabled=not rows):
-    bar = st.progress(0.0, text="Triage...")
-    result = triage_report(
-        rows, context,
-        progress=lambda done, total: bar.progress(done / total, text=f"Triage: batch {done} of {total}"),
-    )
-    bar.progress(0.0, text="Reviewer...")
-    checked = review_blocks(
-        result.rows, context,
-        progress=lambda done, total: bar.progress(done / total, text=f"Reviewer: batch {done} of {total}"),
-    )
-    bar.empty()
-    state.reviews[pick] = {"table": build_table(rows, result.rows, report.has_month, checked.results), "run": result,
-                           "reviewer": checked, "context": context}
-    state.editor_version += 1
-review = state.reviews.get(pick) if pick else None
-if review:
-    run, checked = review["run"], review["reviewer"]
-    errors = int((review["table"]["Decision"] == "error").sum())
-    st.caption(f"{run.distinct_terms} distinct terms, {run.calls} model calls, {run.seconds}s. "
-               f"Rows the model could not label: {errors}. "
-               f"Reviewer: {checked.calls} model calls, {checked.seconds}s, {checked.challenges} challenges.")
+with st.container(border=True, key="step-3"):
+    st.header("3. Review terms")
+    if st.button("Review terms", type="primary", disabled=not rows):
+        bar = st.progress(0.0, text="Triage...")
+        result = triage_report(
+            rows, context,
+            progress=lambda done, total: bar.progress(done / total, text=f"Triage: batch {done} of {total}"),
+        )
+        bar.progress(0.0, text="Reviewer...")
+        checked = review_blocks(
+            result.rows, context,
+            progress=lambda done, total: bar.progress(done / total, text=f"Reviewer: batch {done} of {total}"),
+        )
+        bar.empty()
+        state.reviews[pick] = {"table": build_table(rows, result.rows, report.has_month, checked.results), "run": result,
+                               "reviewer": checked, "context": context}
+        state.editor_version += 1
+    review = state.reviews.get(pick) if pick else None
+    if review:
+        run, checked = review["run"], review["reviewer"]
+        errors = int((review["table"]["Decision"] == "error").sum())
+        st.caption(f"{run.distinct_terms} distinct terms, {run.calls} model calls, {run.seconds}s. "
+                   f"Rows the model could not label: {errors}. "
+                   f"Reviewer: {checked.calls} model calls, {checked.seconds}s, {checked.challenges} challenges.")
 
 # Step 4: check
-st.header("4. Check")
-if review is None:
-    st.info("Run the review to see the table.")
-else:
-    if context != review["context"]:
-        st.warning("The business profile changed since this campaign's review. These decisions were made under "
-                   "the old context: click \"Review terms\" to review the terms again.")
-    table = review["table"]
-    counts = table["Decision"].value_counts()
-    st.caption("  ·  ".join(f"{d}: {counts.get(d, 0)}" for d in DECISIONS))
-    filter_col, challenged_col = st.columns([4, 1], vertical_alignment="bottom")
-    shown = filter_col.multiselect("Filter by decision", DECISIONS, default=DECISIONS, key="filter")
-    challenged = challenged_col.checkbox("Challenged only", key="challenged_only")
-    view = table[table["Decision"].isin(shown)]
-    if challenged:
-        view = view[view["Reviewer"] == "challenge"]
-    state.view_index, state.view_campaign = list(view.index), pick
-    st.data_editor(
-        view,
-        key=editor_key(pick),
-        on_change=apply_edits,
-        hide_index=True,
-        width="stretch",
-        disabled=[c for c in view.columns if c != "Decision"],
-        column_config={
-            "Decision": st.column_config.SelectboxColumn("Decision", options=DECISIONS, required=True),
-            "Reason": st.column_config.TextColumn("Reason", width="large"),
-            "Reviewer note": st.column_config.TextColumn("Reviewer note", width="large"),
-            "Cost": st.column_config.NumberColumn("Cost", format="%.2f"),
-        },
-    )
+with st.container(border=True, key="step-4"):
+    st.header("4. Check")
+    if review is None:
+        st.info("Run the review to see the table.")
+    else:
+        if context != review["context"]:
+            st.warning("The business profile changed since this campaign's review. These decisions were made under "
+                       "the old context: click \"Review terms\" to review the terms again.")
+        table = review["table"]
+        counts = table["Decision"].value_counts()
+        st.caption("  ·  ".join(f"{d}: {counts.get(d, 0)}" for d in DECISIONS))
+        filter_col, challenged_col = st.columns([4, 1], vertical_alignment="bottom")
+        shown = filter_col.multiselect("Filter by decision", DECISIONS, default=DECISIONS, key="filter")
+        challenged = challenged_col.checkbox("Challenged only", key="challenged_only")
+        view = table[table["Decision"].isin(shown)]
+        if challenged:
+            view = view[view["Reviewer"] == "challenge"]
+        state.view_index, state.view_campaign = list(view.index), pick
+        st.data_editor(
+            view,
+            key=editor_key(pick),
+            on_change=apply_edits,
+            hide_index=True,
+            width="stretch",
+            disabled=[c for c in view.columns if c != "Decision"],
+            column_config={
+                "Decision": st.column_config.SelectboxColumn("Decision", options=DECISIONS, required=True),
+                "Reason": st.column_config.TextColumn("Reason", width="large"),
+                "Reviewer note": st.column_config.TextColumn("Reviewer note", width="large"),
+                "Cost": st.column_config.NumberColumn("Cost", format="%.2f"),
+            },
+        )
 
 # Step 5: dashboard
-st.header("5. Dashboard")
-if review is None:
-    st.info("Run the review to see the dashboard.")
-else:
-    table = review["table"]
-    figures = dashboard.tiles(table)
-    spend_col, blocked_col, new_col = st.columns(3)
-    spend_col.metric("Total spend", f"{figures['total_spend']:,.2f}")
-    blocked_col.metric("Spend on blocked terms", f"{figures['blocked_spend']:,.2f}")
-    new_col.metric("New keywords found", figures["new_keywords"])
-    decision_col, intent_col = st.columns(2)
-    decision_col.subheader("Spend by decision")
-    decision_col.bar_chart(dashboard.spend_by_decision(table), x="Decision", y="Cost", sort=False)
-    intent_col.subheader("Spend by intent stage")
-    intent_col.bar_chart(dashboard.spend_by_intent(table), x="Intent stage", y="Cost", sort=False)
-    group_col, grid_col = st.columns(2)
-    group_col.subheader("Spend by ad group")
-    group_col.bar_chart(dashboard.spend_by_ad_group(table), x="Ad group", y="Cost")
-    grid_col.subheader("Intent stage against decision")
-    grid_col.bar_chart(dashboard.intent_by_decision(table), sort=False, y_label="Cost")
-    months = dashboard.month_by_decision(table)
-    if months is not None:
-        st.subheader("Month over month spend by decision")
-        st.bar_chart(months, sort=False, y_label="Cost")
+with st.container(border=True, key="step-5"):
+    st.header("5. Dashboard")
+    if review is None:
+        st.info("Run the review to see the dashboard.")
+    else:
+        table = review["table"]
+        figures = dashboard.tiles(table)
+        spend_col, blocked_col, new_col = st.columns(3)
+        spend_col.metric("Total spend", f"{figures['total_spend']:,.2f}")
+        blocked_col.metric("Spend on blocked terms", f"{figures['blocked_spend']:,.2f}")
+        new_col.metric("New keywords found", figures["new_keywords"])
+        decision_col, intent_col = st.columns(2)
+        decision_col.subheader("Spend by decision")
+        decision_col.bar_chart(dashboard.spend_by_decision(table), x="Decision", y="Cost", sort=False)
+        intent_col.subheader("Spend by intent stage")
+        intent_col.bar_chart(dashboard.spend_by_intent(table), x="Intent stage", y="Cost", sort=False)
+        group_col, grid_col = st.columns(2)
+        group_col.subheader("Spend by ad group")
+        group_col.bar_chart(dashboard.spend_by_ad_group(table), x="Ad group", y="Cost")
+        grid_col.subheader("Intent stage against decision")
+        grid_col.bar_chart(dashboard.intent_by_decision(table), sort=False, y_label="Cost")
+        months = dashboard.month_by_decision(table)
+        if months is not None:
+            st.subheader("Month over month spend by decision")
+            st.bar_chart(months, sort=False, y_label="Cost")
 
 # Step 6: approve
-st.header("6. Approve")
-if review is None:
-    st.info("Run the review to approve its decisions.")
-else:
-    if st.button("Approve and build outputs", type="primary"):
-        review["approved"] = review["table"].copy()
-        review["figures"] = summary.figures(review["approved"])
-        with st.spinner("Writing the weekly summary..."):
-            review["summary"] = summary.write_summary(review["figures"], review["context"])
-    clashes = exports.conflicts(review["table"])
-    if len(clashes):
-        st.warning("These keywords come from terms with different decisions, so they are left out of the negatives "
-                   "and new keywords files. Give their terms one decision in step 4, then approve again.")
-        st.dataframe(clashes, hide_index=True)
-    approved = review.get("approved")
-    if approved is not None and not approved["Decision"].equals(review["table"]["Decision"]):
-        st.warning("A decision changed after approval. Approve again to build the outputs.")
-    elif approved is not None:
-        st.caption("Built from the table as approved.")
-        lists = [("Negatives", exports.negatives(approved, pick), "negatives.csv"),
-                 ("New keywords", exports.new_keywords(approved, pick), "new_keywords.csv"),
-                 ("Watchlist", exports.watchlist(approved), "watchlist.csv")]
-        for column, (label, frame, name) in zip(st.columns(3), lists):
-            column.download_button(f"{label} ({len(frame)} rows)", exports.to_csv(frame), file_name=name,
-                                   mime="text/csv", key=f"download_{name}")
-        st.subheader("Weekly summary")
-        written = review["summary"]
-        if "error" in written:
-            st.error(written["error"])
-        else:
-            st.write(written["summary"])
-            st.markdown("**Recommendations**")
-            st.markdown("\n".join(f"- {r}" for r in written["recommendations"]))
-        with st.expander("Figures the summary was written from"):
-            st.json(review["figures"])
+with st.container(border=True, key="step-6"):
+    st.header("6. Approve")
+    if review is None:
+        st.info("Run the review to approve its decisions.")
+    else:
+        if st.button("Approve and build outputs", type="primary"):
+            review["approved"] = review["table"].copy()
+            review["figures"] = summary.figures(review["approved"])
+            with st.spinner("Writing the weekly summary..."):
+                review["summary"] = summary.write_summary(review["figures"], review["context"])
+        clashes = exports.conflicts(review["table"])
+        if len(clashes):
+            st.warning("These keywords come from terms with different decisions, so they are left out of the negatives "
+                       "and new keywords files. Give their terms one decision in step 4, then approve again.")
+            st.dataframe(clashes, hide_index=True)
+        approved = review.get("approved")
+        if approved is not None and not approved["Decision"].equals(review["table"]["Decision"]):
+            st.warning("A decision changed after approval. Approve again to build the outputs.")
+        elif approved is not None:
+            st.caption("Built from the table as approved.")
+            lists = [("Negatives", exports.negatives(approved, pick), "negatives.csv"),
+                     ("New keywords", exports.new_keywords(approved, pick), "new_keywords.csv"),
+                     ("Watchlist", exports.watchlist(approved), "watchlist.csv")]
+            for column, (label, frame, name) in zip(st.columns(3), lists):
+                column.download_button(f"{label} ({len(frame)} rows)", exports.to_csv(frame), file_name=name,
+                                       mime="text/csv", key=f"download_{name}")
+            st.subheader("Weekly summary")
+            written = review["summary"]
+            if "error" in written:
+                st.error(written["error"])
+            else:
+                st.write(written["summary"])
+                st.markdown("**Recommendations**")
+                st.markdown("\n".join(f"- {r}" for r in written["recommendations"]))
+            with st.expander("Figures the summary was written from"):
+                st.json(review["figures"])
