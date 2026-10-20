@@ -1,0 +1,21 @@
+id,variant,draft_label,draft_note
+1,whole table,PASS,"Borderline: recommendation 3 says to focus budget on Industries and Online Payments because their spend rose; rising spend is a real figure but says nothing about results"
+2,ad group: Merchant Accounts,FAIL,"Says there is not enough data to show rising ad groups; both months are present and the rising list is empty with no note, so the figures show no rise, not missing data"
+3,ad group: Card Processing,FAIL,"Same as 2: claims not enough data while the figures cover two consecutive months and show no rise"
+4,ad group: POS,FAIL,"Same as 2: claims not enough data while the figures cover two consecutive months and show no rise"
+5,ad group: Online Payments,FAIL,"Orders intent stages as informational, then navigational (602.75), then commercial (626.56); commercial is larger than navigational"
+6,ad group: Industries,PASS,
+7,month: August 2026,PASS,"One month, so not enough data for month over month is correct"
+8,month: September 2026,PASS,"One month, so not enough data for month over month is correct"
+9,random half 9,PASS,"Borderline: recommendation 3 suggests expanding targeting in the ad groups whose spend rose"
+10,random half 10,PASS,
+11,random half 11,PASS,
+12,random half 12,PASS,"Spend is concentrated across intent stages is vague but contradicts nothing"
+13,random half 13,FAIL,"Orders intent stages as commercial, informational (3,805.30), then navigational (4,415.16); navigational is larger than informational"
+14,random half 14,PASS,
+15,random half 15,PASS,
+16,random half 16,PASS,
+17,random half 17,PASS,"Borderline: recommendation 3 says to lean into ad groups because their spend rose"
+18,random half 18,PASS,"Borderline: recommendation 3 says to prioritize budget in Industries and Merchant Accounts because their spend rose"
+19,random half 19,PASS,
+20,random half 20,PASS,
