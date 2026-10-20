@@ -11,6 +11,7 @@ from unittest import mock
 import pandas as pd
 import streamlit as st
 from streamlit.elements.progress import ProgressMixin
+from streamlit.proto.WidgetStates_pb2 import WidgetState
 from streamlit.testing.v1 import AppTest
 
 APP = Path(__file__).resolve().parents[1] / "app"
@@ -105,7 +106,9 @@ class Screen(unittest.TestCase):
         next(b for b in self.at.button if b.label == "Review terms").click().run()
 
     def counts(self):
-        return next((c.value for c in self.at.caption if c.value.startswith("target:")), None)
+        """The four decision cards in step 4, as "target: 0  ·  block: 0  ·  ..."; None when they are not shown."""
+        cards = {m.label: m.value for m in self.at.metric if m.label in ("Target", "Block", "Monitor", "Error")}
+        return "  ·  ".join(f"{d.lower()}: {cards[d]}" for d in ("Target", "Block", "Monitor", "Error")) if cards else None
 
     def notice(self):
         return any("review the terms again" in w.value for w in self.at.warning)
@@ -157,13 +160,30 @@ class Screen(unittest.TestCase):
         self.assertEqual(by_term.loc["vexmo reader", "Reviewer"], "")
         self.assertEqual(by_term.loc["vexmo reader", "Reviewer note"], "")
 
-        run_caption = next(c.value for c in self.at.caption if "distinct terms" in c.value)
-        self.assertIn("Reviewer: 2 model calls", run_caption)  # first call, then the retry of the bad verdict
-        self.assertIn("1 challenges", run_caption)
+        run_cards = {m.label: m.value for m in self.at.metric}
+        self.assertEqual(run_cards["Reviewer calls"], "2")  # first call, then the retry of the bad verdict
+        self.assertEqual(run_cards["Challenges"], "1")
 
         self.assertEqual(len(self.at.session_state["view_index"]), 4)
         self.at.checkbox(key="challenged_only").check().run()
         self.assertEqual([table.loc[i, "Term"] for i in self.at.session_state["view_index"]], ["quillon careers"])
+
+    def test_an_edit_in_the_capitalized_decision_column_stores_lowercase(self):
+        self.triage_call = block_three_words
+        self.at.text_area(key="paste").input(THREE_BLOCKS).run()
+        self.review()
+        editor = next(d for d in self.at.dataframe if "editor_Camp C_" in d.proto.id)
+        self.assertEqual(list(editor.value["Decision"]), ["Block", "Block", "Block", "Monitor"])  # shown capitalized
+        # What the browser sends when the reviewer picks "Monitor" for view row 1 (quillon careers)
+        edit = WidgetState(id=editor.proto.id, string_value=json.dumps(
+            {"edited_rows": {"1": {"Decision": "Monitor"}}, "added_rows": [], "deleted_rows": []}))
+        states = self.at._tree.get_widget_states()
+        states.widgets.append(edit)
+        self.at._run(states)
+        by_term = self.table().set_index("Term")
+        self.assertEqual(by_term.loc["quillon careers", "Decision"], "monitor")
+        self.assertEqual(by_term.loc["zorbix login", "Decision"], "block")
+        self.assertEqual(self.counts(), "target: 0  ·  block: 2  ·  monitor: 2  ·  error: 0")
 
     def test_changing_a_decision_does_not_rerun_the_reviewer(self):
         self.triage_call = block_three_words
@@ -275,6 +295,8 @@ class EmptyStartAndDemo(unittest.TestCase):
         button(self.at, "Load demo: Plover Payments").click().run()
         self.assertEqual(self.at.text_area(key="profile").value,
                          (APP / "data" / "business_profile.md").read_text(encoding="utf-8"))
+        self.assertIsNone(self.at.session_state["raw"])  # the profile only; the report is offered in step 2
+        button(self.at, "Use demo file").click().run()
         self.assertEqual(self.at.session_state["raw"],
                          (APP / "data" / "demo" / "search_terms_demo_small.csv").read_bytes())
         self.assertEqual(self.at.selectbox(key="campaign_pick").value, "Plover Generic Search")
@@ -283,8 +305,36 @@ class EmptyStartAndDemo(unittest.TestCase):
         [context] = self.model_sees()
         self.assertIn("Every decision is for this campaign only: Plover Generic Search", context)
 
+    def test_demo_report_buttons_appear_only_after_the_demo_button(self):
+        self.assertIsNone(button(self.at, "Use demo file"))
+        self.assertIsNone(button(self.at, "Paste demo export"))
+        button(self.at, "Load demo: Plover Payments").click().run()
+        self.assertEqual(steps(self.at)["step-2"], ("**2. Report**", True))  # step 2 stays open for the report
+        self.assertIsNotNone(button(self.at, "Use demo file"))
+        self.assertIsNotNone(button(self.at, "Paste demo export"))
+
+    def test_use_demo_file_loads_it_as_an_upload(self):
+        button(self.at, "Load demo: Plover Payments").click().run()
+        button(self.at, "Use demo file").click().run()
+        self.assertEqual(self.at.session_state["source"], "search_terms_demo_small.csv")
+        self.assertEqual(self.at.text_area(key="paste").value, "")
+        self.assertEqual(self.at.selectbox(key="campaign_pick").value, "Plover Generic Search")
+        self.assertTrue(any(c.value.startswith("Source: search_terms_demo_small.csv.") for c in self.at.caption))
+
+    def test_paste_demo_export_fills_the_paste_box_and_loads_it_as_pasted_text(self):
+        demo = (APP / "data" / "demo" / "search_terms_demo_small.csv").read_text(encoding="utf-8")
+        button(self.at, "Load demo: Plover Payments").click().run()
+        button(self.at, "Paste demo export").click().run()
+        self.assertEqual(self.at.text_area(key="paste").value, demo)
+        self.assertEqual(self.at.session_state["raw"], demo)
+        self.assertEqual(self.at.session_state["source"], "pasted text")
+        self.assertEqual(self.at.selectbox(key="campaign_pick").value, "Plover Generic Search")
+        self.assertEqual(self.reviewed, [])
+        self.assertFalse(self.review_disabled())
+
     def test_complete_steps_collapse_with_a_summary_and_reopen_on_click(self):
         button(self.at, "Load demo: Plover Payments").click().run()
+        button(self.at, "Use demo file").click().run()
         self.assertEqual(steps(self.at), {
             "step-1": ("**1. Account** Plover Payments profile", False),
             "step-2": ("**2. Report** 80 terms, Plover Generic Search, Aug to Sep 2026", False),

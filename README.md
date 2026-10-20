@@ -12,6 +12,8 @@ Every week a search terms report lists the queries people actually typed before 
 
 KeepCut reads each term against your business profile and drafts a decision: target, block or monitor. A second check challenges every block. You review the table, change anything you disagree with and approve. KeepCut then builds three CSV files (negatives, new keywords, a watchlist) and a short weekly summary written from figures the code calculated. Nothing changes in your ad account: KeepCut drafts, you decide.
 
+The label rules in app/data/labels.md are written for the demo account; rules per account are the next step.
+
 The app is one screen with six steps:
 
 1. **Account**: edit the business profile and see exactly what the model is given.
@@ -31,7 +33,7 @@ Google Ads search terms today. Other ad platforms later.
 
 ## Try it
 
-Click **Load demo: Plover Payments** above step 1. It fills the business profile and loads a synthetic 80-term report for Plover Payments, a fictional company. Then click **Review terms**.
+Click **Load demo: Plover Payments** above step 1. It fills the business profile for Plover Payments, a fictional company. Step 2 then offers a synthetic 80-term report two ways: **Use demo file** loads it as an upload, and **Paste demo export** puts its text in the paste box. Then click **Review terms**.
 
 ## Run it locally
 

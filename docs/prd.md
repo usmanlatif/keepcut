@@ -48,8 +48,8 @@ One screen, worked top to bottom. Nothing leaves the table until the manager app
 
 | Step | The manager | The app |
 | --- | --- | --- |
-| 1. Account | Pastes the business profile, or clicks "Load demo: Plover Payments" above step 1, which fills the profile and loads the demo report; nothing is prefilled | Shows exactly what the model will receive, in a "What the model sees" panel; the step collapses to one summary line once complete |
-| 2. Report | Uploads the Google Ads search terms export, or pastes it, then picks the campaign; the campaign name goes into what the model sees | Checks the required columns, then shows row count and date range, or names the missing column; the step collapses to one summary line once complete |
+| 1. Account | Pastes the business profile, or clicks "Load demo: Plover Payments" above step 1, which fills the profile; nothing is prefilled | Shows exactly what the model will receive, in a "What the model sees" panel; the step collapses to one summary line once complete |
+| 2. Report | Uploads the Google Ads search terms export, or pastes it (after the demo click, "Use demo file" and "Paste demo export" show both routes with the demo report), then picks the campaign; the campaign name goes into what the model sees | Checks the required columns, then shows row count and date range, or names the missing column; the step collapses to one summary line once complete |
 | 3. Review terms | Clicks "Review terms" | Triage labels every term; the reviewer agent challenges each `block`; progress shown |
 | 4. Check | Filters by decision or by "challenged", reads trigger and reason, changes any decision | Table: term, ad group, intent stage, decision, trigger, reason, reviewer verdict, clicks, cost, conversions |
 | 5. Dashboard | Reads it | Tiles: total spend, spend on blocked terms, new keywords found. Charts: spend by decision, by intent stage, by ad group; month over month when the report spans two months. Updates as decisions change |

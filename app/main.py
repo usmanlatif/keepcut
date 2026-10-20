@@ -17,12 +17,16 @@ APP = Path(__file__).resolve().parent
 PROFILE = APP / "data" / "business_profile.md"
 DEMO = APP / "data" / "demo" / "search_terms_demo_small.csv"
 DECISIONS = ["target", "block", "monitor", "error"]
+# One color per decision, for the step 4 cards and the charts
+DECISION_COLORS = {"target": "#1F4D3F", "block": "#9B2C2C", "monitor": "#7A4F00", "error": "#4A5563"}
 STEPS = ("step-1", "step-2")  # the two setup steps, which collapse once complete
 
 st.set_page_config(page_title="KeepCut", layout="wide")
 # The only custom CSS: cap the wide layout at 1180px, centered, raise captions to 0.8 opacity for a projector,
-# fill the six step boxes white, bold field labels, give buttons the brand green, and size the labels of the two
-# collapsible steps like the other step headings.
+# fill the six step boxes white, bold field labels, give buttons the brand green, size the labels of the two
+# collapsible steps like the other step headings, style every number as a white card with a bold label (the date
+# range smaller and wrapping), pad the chart boxes, and give each decision card a tint, a thick left border and a
+# value in its decision color.
 st.html("""<style>
 [data-testid="stMainBlockContainer"] { max-width: 1180px; margin: 0 auto; }
 [data-testid="stCaptionContainer"] { opacity: 0.8; }
@@ -33,7 +37,17 @@ button[data-testid="stBaseButton-secondary"]:not(:disabled):hover { background: 
 button[data-testid="stBaseButton-primary"]:not(:disabled):hover { background: #163A2F; border-color: #163A2F; }
 [class*="st-key-step-"] > [data-testid="stExpander"] > details > summary { background: #FFFFFF; }
 [class*="st-key-step-"] > [data-testid="stExpander"] > details > summary strong { font-size: 2.25rem; font-weight: 600; margin-right: 0.75rem; }
-</style>""")
+[data-testid="stMetric"] { background: #FFFFFF; padding: 0.75rem 1rem; }
+[data-testid="stMetricLabel"] p { font-weight: 600; color: #14181A; }
+.st-key-date-range [data-testid="stMetricValue"] { font-size: 1.35rem; }
+.st-key-date-range [data-testid="stMetricValue"] p { white-space: normal; }
+[class*="st-key-chart-"] { padding: 1.25rem; }
+[class*="st-key-decision-"] [data-testid="stMetric"] { border-left-width: 6px; }
+[class*="st-key-decision-"] [data-testid="stMetricValue"] { font-size: 3rem; }
+""" + "".join(
+    f".st-key-decision-{d} [data-testid='stMetric'] {{ background: color-mix(in srgb, {c} 8%, #FFFFFF); "
+    f"border-left-color: {c}; }}\n.st-key-decision-{d} [data-testid='stMetricValue'] {{ color: {c}; }}\n"
+    for d, c in DECISION_COLORS.items()) + "</style>")
 state = st.session_state
 state.setdefault("raw", None)
 state.setdefault("source", None)
@@ -42,6 +56,7 @@ state.setdefault("editor_version", 0)
 state.setdefault("profile", "")
 state.setdefault("open", dict.fromkeys(STEPS, True))  # whether each setup step is open, kept across label changes
 state.setdefault("complete", dict.fromkeys(STEPS, False))
+state.setdefault("demo", False)  # whether the demo button was clicked, which offers the demo report in step 2
 
 
 def set_report(raw, source):
@@ -62,9 +77,26 @@ def on_paste():
 
 
 def on_demo():
-    """Fills the profile and loads the small demo report; its one campaign is picked when the report is parsed."""
+    """Fills the profile only; step 2 then offers the demo report as a file or as pasted text."""
     state.profile = PROFILE.read_text(encoding="utf-8")
-    set_report(DEMO.read_bytes(), "demo report")
+    state.demo = True
+
+
+def on_demo_file():
+    """Loads the small demo report as if it were uploaded; its one campaign is picked when the report is parsed."""
+    set_report(DEMO.read_bytes(), DEMO.name)
+
+
+def on_demo_paste():
+    """Puts the demo report's text in the paste box and loads it as pasted text."""
+    state.paste = DEMO.read_text(encoding="utf-8")
+    set_report(state.paste, "pasted text")
+
+
+def proper(values):
+    """Decisions, intent stages and verdicts as the screen shows them ("target" as "Target"); the table keeps them
+    lowercase."""
+    return values.str.capitalize()
 
 
 def remember_open(step):
@@ -102,7 +134,8 @@ def editor_key(campaign):
 def apply_edits():
     """Copy decision edits from the filtered editor back into the full table, then start a fresh editor so the
     positional edits are not reapplied to a view whose rows have changed."""
-    edits = state[editor_key(state.view_campaign)]["edited_rows"]
+    edits = {position: {**change, "Decision": change["Decision"].lower()} if change.get("Decision") else change
+             for position, change in state[editor_key(state.view_campaign)]["edited_rows"].items()}
     stored = state.reviews[state.view_campaign]
     stored["table"] = apply_decision_edits(stored["table"], state.view_index, edits)
     state.editor_version += 1
@@ -156,6 +189,11 @@ with step_box("step-2", "2. Report", summaries["step-2"]):
     upload_col.file_uploader("Upload a Google Ads search terms export", type=["csv", "tsv", "txt"],
                              key="upload", on_change=on_upload)
     paste_col.text_area("Or paste the export", key="paste", height=120, on_change=on_paste)
+    if state.demo:
+        # A row of their own, so the two buttons line up under fields of different heights
+        file_col, text_col = st.columns(2)
+        file_col.button("Use demo file", icon=":material/upload_file:", on_click=on_demo_file)
+        text_col.button("Paste demo export", icon=":material/content_paste:", on_click=on_demo_paste)
 
     if report_error:
         st.error(report_error)
@@ -168,9 +206,10 @@ with step_box("step-2", "2. Report", summaries["step-2"]):
                      placeholder="Choose a campaign", key="campaign_pick")
         if pick:
             rows_col, dates_col, cost_col = st.columns(3)
-            rows_col.metric("Rows", len(rows))
-            dates_col.metric("Date range", report.date_range or "Not in the file")
-            cost_col.metric("Cost", f"{sum(r['Cost'] for r in rows):,.2f}")
+            rows_col.metric("Rows", len(rows), border=True, height="stretch")
+            dates_col.container(key="date-range", height="stretch").metric(
+                "Date range", report.date_range or "Not in the file", border=True, height="stretch")
+            cost_col.metric("Cost", f"{sum(r['Cost'] for r in rows):,.2f}", border=True, height="stretch")
 
 # Step 3: review terms
 with st.container(border=True, key="step-3"):
@@ -198,9 +237,12 @@ with st.container(border=True, key="step-3"):
     if review:
         run, checked = review["run"], review["reviewer"]
         errors = int((review["table"]["Decision"] == "error").sum())
-        st.caption(f"{run.distinct_terms} distinct terms, {run.calls} model calls, {run.seconds}s. "
-                   f"Rows the model could not label: {errors}. "
-                   f"Reviewer: {checked.calls} model calls, {checked.seconds}s, {checked.challenges} challenges.")
+        run_figures = [("Distinct terms", run.distinct_terms), ("Model calls", run.calls),
+                       ("Seconds", round(run.seconds + checked.seconds, 1)), ("Rows not labeled", errors),
+                       ("Reviewer calls", checked.calls), ("Challenges", checked.challenges)]
+        for row in (run_figures[:3], run_figures[3:]):  # two rows of three, so no label is cut short
+            for column, (label, value) in zip(st.columns(3), row):
+                column.metric(label, value, border=True)
 
 # Step 4: check
 with st.container(border=True, key="step-4"):
@@ -213,23 +255,30 @@ with st.container(border=True, key="step-4"):
                        "the old context: click \"Review terms\" to review the terms again.")
         table = review["table"]
         counts = table["Decision"].value_counts()
-        st.caption("  ·  ".join(f"{d}: {counts.get(d, 0)}" for d in DECISIONS))
+        for column, d in zip(st.columns(len(DECISIONS)), DECISIONS):
+            column.container(key=f"decision-{d}").metric(d.capitalize(), int(counts.get(d, 0)), border=True)
         filter_col, challenged_col = st.columns([4, 1], vertical_alignment="bottom")
-        shown = filter_col.multiselect("Filter by decision", DECISIONS, default=DECISIONS, key="filter")
+        shown = filter_col.multiselect("Filter by decision", DECISIONS, default=DECISIONS, key="filter",
+                                       format_func=str.capitalize)
         challenged = challenged_col.checkbox("Challenged only", key="challenged_only")
         view = table[table["Decision"].isin(shown)]
         if challenged:
             view = view[view["Reviewer"] == "challenge"]
         state.view_index, state.view_campaign = list(view.index), pick
+        # A display copy: proper case on screen, lowercase in the table (apply_edits lowercases an edited decision)
+        shown_view = view.assign(**{c: proper(view[c]) for c in ("Decision", "Intent stage", "Reviewer")},
+                                 **{"Reviewer note": view["Reviewer note"].str[:1].str.upper()
+                                    + view["Reviewer note"].str[1:]})
         st.data_editor(
-            view,
+            shown_view,
             key=editor_key(pick),
             on_change=apply_edits,
             hide_index=True,
             width="stretch",
             disabled=[c for c in view.columns if c != "Decision"],
             column_config={
-                "Decision": st.column_config.SelectboxColumn("Decision", options=DECISIONS, required=True),
+                "Decision": st.column_config.SelectboxColumn(
+                    "Decision", options=[d.capitalize() for d in DECISIONS], required=True),
                 "Reason": st.column_config.TextColumn("Reason", width="large"),
                 "Reviewer note": st.column_config.TextColumn("Reviewer note", width="large"),
                 "Cost": st.column_config.NumberColumn("Cost", format="%.2f"),
@@ -245,23 +294,36 @@ with st.container(border=True, key="step-5"):
         table = review["table"]
         figures = dashboard.tiles(table)
         spend_col, blocked_col, new_col = st.columns(3)
-        spend_col.metric("Total spend", f"{figures['total_spend']:,.2f}")
-        blocked_col.metric("Spend on blocked terms", f"{figures['blocked_spend']:,.2f}")
-        new_col.metric("New keywords found", figures["new_keywords"])
+        spend_col.metric("Total spend", f"{figures['total_spend']:,.2f}", border=True)
+        blocked_col.metric("Spend on blocked terms", f"{figures['blocked_spend']:,.2f}", border=True)
+        new_col.metric("New keywords found", figures["new_keywords"], border=True)
+        st.divider()
+        # Display copies of the chart frames: decisions and intent stages in proper case
+        by_decision = dashboard.spend_by_decision(table)
+        by_intent = dashboard.spend_by_intent(table)
+        grid = dashboard.intent_by_decision(table)
         decision_col, intent_col = st.columns(2)
-        decision_col.subheader("Spend by decision")
-        decision_col.bar_chart(dashboard.spend_by_decision(table), x="Decision", y="Cost", sort=False)
-        intent_col.subheader("Spend by intent stage")
-        intent_col.bar_chart(dashboard.spend_by_intent(table), x="Intent stage", y="Cost", sort=False)
+        with decision_col.container(border=True, key="chart-decision"):
+            st.subheader("Spend by decision")
+            st.bar_chart(by_decision.assign(Decision=proper(by_decision["Decision"])), x="Decision", y="Cost",
+                         sort=False)
+        with intent_col.container(border=True, key="chart-intent"):
+            st.subheader("Spend by intent stage")
+            st.bar_chart(by_intent.assign(**{"Intent stage": proper(by_intent["Intent stage"])}), x="Intent stage",
+                         y="Cost", sort=False)
         group_col, grid_col = st.columns(2)
-        group_col.subheader("Spend by ad group")
-        group_col.bar_chart(dashboard.spend_by_ad_group(table), x="Ad group", y="Cost")
-        grid_col.subheader("Intent stage against decision")
-        grid_col.bar_chart(dashboard.intent_by_decision(table), sort=False, y_label="Cost")
+        with group_col.container(border=True, key="chart-ad-group"):
+            st.subheader("Spend by ad group")
+            st.bar_chart(dashboard.spend_by_ad_group(table), x="Ad group", y="Cost")
+        with grid_col.container(border=True, key="chart-intent-decision"):
+            st.subheader("Intent stage against decision")
+            st.bar_chart(grid.rename(index=str.capitalize, columns=str.capitalize), sort=False, y_label="Cost")
         months = dashboard.month_by_decision(table)
         if months is not None:
-            st.subheader("Month over month spend by decision")
-            st.bar_chart(months, sort=False, y_label="Cost")
+            with st.container(border=True, key="chart-month"):
+                st.subheader("Month over month spend by decision")
+                st.bar_chart(months.rename(index=str.capitalize, columns=str.capitalize), sort=False,
+                             y_label="Cost")
 
 # Step 6: approve
 with st.container(border=True, key="step-6"):
@@ -288,8 +350,12 @@ with st.container(border=True, key="step-6"):
                      ("New keywords", exports.new_keywords(approved, pick), "new_keywords.csv"),
                      ("Watchlist", exports.watchlist(approved), "watchlist.csv")]
             for column, (label, frame, name) in zip(st.columns(3), lists):
-                column.download_button(f"{label} ({len(frame)} rows)", exports.to_csv(frame), file_name=name,
-                                       mime="text/csv", key=f"download_{name}")
+                with column.container(border=True, key=f"file-{name.removesuffix('.csv')}"):
+                    st.markdown(f":material/csv: **{name}**")
+                    st.caption(f"{len(frame)} rows")
+                    st.download_button(f"{label} ({len(frame)} rows)", exports.to_csv(frame), file_name=name,
+                                       mime="text/csv", key=f"download_{name}", type="primary",
+                                       icon=":material/download:")
             st.subheader("Weekly summary")
             written = review["summary"]
             if "error" in written:
